@@ -1,0 +1,19 @@
+{
+  "name": "eval-tools-for-agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cross-harness monorepo of deterministic evaluation tools, agent-looping skills, and telemetry dashboards.",
+  "workspaces": [
+    "tools/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "verify:pr": "node scripts/verify-pr-ready.mjs",
+    "linear:status": "node scripts/sync-linear.mjs --status"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

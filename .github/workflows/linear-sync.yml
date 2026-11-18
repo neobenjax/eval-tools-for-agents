@@ -1,0 +1,38 @@
+name: Linear Stage Sync
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+jobs:
+  sync-linear:
+    if: ${{ secrets.LINEAR_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Transition Linear issues referenced in PR body
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          node -e '
+            const body = process.env.PR_BODY || "";
+            const keys = [...new Set([...body.matchAll(/\b(SIDE-\d+)\b/gi)].map(m => m[1].toUpperCase()))];
+            if (keys.length === 0) { console.log("No SIDE-XX keys found in PR body."); process.exit(0); }
+            let targetState = null;
+            if (process.env.PR_ACTION === "opened" || process.env.PR_ACTION === "reopened") {
+              targetState = "In Review";
+            } else if (process.env.PR_ACTION === "closed" && process.env.PR_MERGED === "true") {
+              targetState = "Approved";
+            }
+            if (!targetState) process.exit(0);
+            const { execSync } = await import("child_process");
+            for (const key of keys) {
+              execSync(`node scripts/sync-linear.mjs --move ${key} "${targetState}"`, { stdio: "inherit" });
+            }
+          ' --input-type=module

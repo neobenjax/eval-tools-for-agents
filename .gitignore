@@ -1,0 +1,22 @@
+# Dependencies & build
+node_modules/
+dist/
+build/
+.turbo/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Eval & test artifacts
+.visual-eval/
+test-results/
+playwright-report/
+coverage/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background: #0f172a; width: 480px; height: 280px; padding: 16px; }
+    .overflow-banner { width: 620px; background: #ef4444; color: #fff; padding: 8px; }
+    .avatar-stack { display: flex; margin-top: 12px; }
+    .avatar { width: 24px; height: 24px; border-radius: 999px; background: #3b82f6; margin-left: -8px; }
+  </style>
+</head>
+<body>
+  <div class="overflow-banner">Deliberate 620px overflow inside 480px viewport</div>
+  <img src="/missing-asset.png" alt="Missing asset" />
+  <div class="avatar-stack" data-allow-overlap>
+    <div class="avatar"></div>
+    <div class="avatar"></div>
+  </div>
+</body>
+</html>

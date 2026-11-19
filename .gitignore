@@ -11,6 +11,7 @@ build/
 
 # Eval & test artifacts
 .visual-eval/
+.visual-eval-test/
 test-results/
 playwright-report/
 coverage/

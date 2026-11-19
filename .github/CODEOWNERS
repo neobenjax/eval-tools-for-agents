@@ -1,0 +1,5 @@
+# Default reviewers for every pull request in this repo.
+# GitHub requests a review from each owner listed here, except the PR's own author:
+# - PRs opened by neobenjax automatically request benjaminszaiagent (Cody, the review guardrail).
+# - PRs opened by benjaminszaiagent automatically request neobenjax.
+* @neobenjax @benjaminszaiagent

@@ -165,8 +165,8 @@ Pixel pass/fail is a property of a pinned browser, pinned fonts, a frozen page, 
 
 ### OS policy
 
-- **Source of truth:** `ubuntu-latest` CI with the pinned Chromium. A pixel mismatch there is blocking.
-- **Windows v1 requirement:** `npm install` (and global `pixel-gate` install), `pixel-gate --help`, Gate 1, the scenario runner, and Section 6 schema shape MUST pass on Windows (`windows-latest`); pixel `mismatchPct` differences on Windows/macOS are reported without blocking.
+- **Windows-first (primary dev & test platform):** `npm install` (and global `pixel-gate` install), `pixel-gate --help`, Gate 1, the scenario runner, and Section 6 schema shape MUST pass on Windows (`windows-latest`); pixel `mismatchPct` differences on Windows/macOS are reported without blocking.
+- **Pixel source of truth:** `ubuntu-latest` CI with the pinned Chromium is the strict pixel merge bar. A pixel mismatch there is blocking.
 - Docs stay Windows-capable (directory junctions, PowerShell snippets). That requirement is independent of the pixel bar.
 
 ### Flake budget
@@ -435,7 +435,7 @@ Tracked so later issues extend the engine instead of replacing it.
 All six planning questions from Issue #3 have been resolved by the owner (`@neobenjax`):
 
 1. **Pixel bar when the developer OS cannot match a Figma export.**  
-   **Resolved:** Pinned Chromium on Linux CI (`ubuntu-latest`) is the strict pixel source of truth. A mismatch there blocks. A mismatch that appears only on Windows or macOS is reported and does not block.
+   **Resolved:** Windows-first for development and daily testing (`windows-latest` verifies install, `--help`, Gate 1, scenario runner, and schema shape); pinned Chromium on Linux CI (`ubuntu-latest`) is the strict pixel source of truth. A mismatch on Ubuntu blocks, while a font-only mismatch on Windows or macOS is reported without blocking.
 2. **May a vision verdict fail a run?**  
    **Resolved:** Advisory by default (`vision.blocking: false`). The tool is designed for agents to loop and fix UI/UX issues; deterministic gates set `passed` unless a project config explicitly sets `vision.blocking: true`.
 3. **Is Chrome DevTools MCP part of the first module?**  

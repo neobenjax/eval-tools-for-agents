@@ -23,7 +23,7 @@ node scripts/sync-linear.mjs --move SIDE-XX "In Progress"
 
 ## Toolchain & Runtime
 
-- **OS:** Windows-first cross-platform (Node.js ESM `.mjs`, `os.homedir()`, directory junctions on Windows, symlinks on Unix).
+- **OS:** Windows-first cross-platform (Node.js ESM `.mjs`, `os.homedir()`, directory junctions on Windows, symlinks on Unix). Windows is the primary dev and test platform (`SPEC.md` Section 5: install, `--help`, Gate 1, scenario runner, and schema shape on `windows-latest`); `ubuntu-latest` with pinned Chromium is the strict merge bar for pixel diffs.
 - **Runtime:** Node.js 22+ (`"type": "module"`), npm workspaces (`tools/*`, `apps/*`).
 - **Git (Non-Interactive):** Always set `$env:GIT_TERMINAL_PROMPT="0"` in automated sessions.
 

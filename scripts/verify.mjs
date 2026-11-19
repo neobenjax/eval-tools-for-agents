@@ -40,6 +40,7 @@ for (const pattern of ['.env', '.visual-eval/']) {
 
 console.log('==> [verify] Validating package.json & workspace tests...');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+let executedSuites = 0;
 for (const wsGlob of ['tools', 'apps']) {
   const wsDir = path.join(root, wsGlob);
   if (!fs.existsSync(wsDir)) continue;
@@ -50,6 +51,7 @@ for (const wsGlob of ['tools', 'apps']) {
     const subPkg = JSON.parse(fs.readFileSync(subPkgPath, 'utf8'));
     if (subPkg.scripts?.test) {
       console.log(`  Running tests in ${wsGlob}/${entry.name}...`);
+      executedSuites++;
       try {
         execSync('npm test', { cwd: path.join(wsDir, entry.name), stdio: 'inherit' });
       } catch {
@@ -57,6 +59,11 @@ for (const wsGlob of ['tools', 'apps']) {
       }
     }
   }
+}
+
+if (executedSuites === 0) {
+  console.error('  FAIL: Zero workspace test suites executed.');
+  failed = true;
 }
 
 if (failed) {

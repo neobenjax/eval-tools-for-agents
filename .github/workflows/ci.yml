@@ -31,3 +31,8 @@ jobs:
         run: node tools/pixel-perfect-gate/bin/pixel-gate.mjs --help
       - name: Run pre-flight verifier and package tests
         run: node scripts/verify.mjs
+      - name: Verify PR readiness and SPEC parity
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+        run: node scripts/verify-pr-ready.mjs

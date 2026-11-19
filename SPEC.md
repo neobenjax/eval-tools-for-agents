@@ -293,14 +293,14 @@ Checkboxes here are issue-local. They are not the matrix in section 4. `sync-lin
 
 PR #2 already compares pixels, honors `--dpr`, writes the 3-panel composite, covers `--mask`, clipped text, and `console.error`, and has a wireframe flag that always passes. Status of acceptance items:
 
-- [ ] Wireframe mode fails when a landmark box (`header`, `nav`, `main`, `footer`, or a selector listed in config) moves more than `4` CSS pixels on `x` or `y`, or changes width or height by more than `4` CSS pixels.
-- [ ] A color-only change (same boxes, different paint) stays passing in wireframe mode.
-- [ ] At least one test compares against a PNG committed under `tools/pixel-perfect-gate/tests/fixtures/`, not a screenshot captured in that test.
+- [x] Wireframe mode fails when a landmark box (`header`, `nav`, `main`, `footer`, or a selector listed in config) moves more than `4` CSS pixels on `x` or `y`, or changes width or height by more than `4` CSS pixels.
+- [x] A color-only change (same boxes, different paint) stays passing in wireframe mode.
+- [x] At least one test compares against a PNG committed under `tools/pixel-perfect-gate/tests/fixtures/`, not a screenshot captured in that test.
 - [x] A mask fixture shows a changing region under the mask stays inside `--max-diff`, and the same change outside the mask fails. *(Covered in PR #2)*
-- [ ] A `--full-page` fixture uses a committed full-page reference and fails on a height mismatch.
+- [x] A `--full-page` fixture uses a committed full-page reference and fails on a height mismatch.
 - [x] A fixture covers clipped text. *(Covered in PR #2)*
 - [x] A fixture covers a `console.error`. *(Covered in PR #2)*
-- [ ] Reference dimensions not divisible by `--dpr` fail with a dimension finding and do not round the viewport.
+- [x] Reference dimensions not divisible by `--dpr` fail with a dimension finding and do not round the viewport.
 
 ### SIDE-24 report schema (`M1.6`)
 

@@ -19,10 +19,13 @@ program
   .option('--ref <path>', 'Path to reference design PNG (omit for Gate 1 layout-only check)')
   .option('--mode <mode>', 'Visual comparison mode: pixel | wireframe', 'pixel')
   .option('--dpr <number>', 'Device pixel ratio (use 2 for @2x Figma exports)', '1')
-  .option('--viewport <WxH>', 'Fallback viewport when --ref is omitted', '1440x900')
+  .option('--viewport <WxH>', 'Viewport WxH (defaults to --ref dimensions / --dpr, or 1440x900 when --ref is omitted; pass explicitly for element-sized --selector refs)', '1440x900')
   .option('--selector <css>', 'Optional CSS selector to crop comparison')
   .option('--mask <selectors>', 'Comma-separated CSS selectors to mask dynamic elements')
+  .option('--landmarks <selectors>', 'Comma-separated landmark selectors for wireframe mode', 'header,nav,main,footer')
+  .option('--ref-landmarks <path>', 'Optional JSON file of expected landmark boxes for wireframe mode')
   .option('--full-page', 'Capture full scrollable page instead of viewport', false)
+  .option('--timeout <ms>', 'Navigation timeout in milliseconds', '20000')
   .option('--out <dir>', 'Output directory for screenshots, diff, and telemetry', '.visual-eval')
   .option('--threshold <number>', 'Pixelmatch color sensitivity (0-1)', '0.1')
   .option('--max-diff <number>', 'Max allowed mismatch percentage before failing', '0.5')
@@ -33,14 +36,52 @@ program
 
 const opts = program.opts();
 const startMs = Date.now();
-const dpr = Number(opts.dpr) || 1;
 const mode = opts.mode === 'wireframe' ? 'wireframe' : 'pixel';
 
 let browser = null;
 let gate1Result = null;
 let gate2Result = null;
+let dpr = 1;
+let iteration = 1;
+
+function resolveExpectedLandmarks(refPath, refLandmarksPath) {
+  if (refLandmarksPath) {
+    if (!fs.existsSync(refLandmarksPath)) {
+      throw new Error(`Reference landmarks file not found: ${refLandmarksPath}`);
+    }
+    return JSON.parse(fs.readFileSync(refLandmarksPath, 'utf8'));
+  }
+  if (!refPath) return null;
+  const parsed = path.parse(refPath);
+  const candidates = [
+    path.join(parsed.dir, `${parsed.name}.landmarks.json`),
+    `${refPath}.landmarks.json`,
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+    }
+  }
+  return null;
+}
 
 try {
+  const iterRaw = String(opts.iteration ?? '1').trim();
+  const parsedIteration = Number(iterRaw);
+  if (!/^\d+$/.test(iterRaw) || !Number.isInteger(parsedIteration) || parsedIteration < 1 || parsedIteration > 5) {
+    throw new Error(`Invalid --iteration "${opts.iteration}": must be an integer between 1 and 5.`);
+  }
+  iteration = parsedIteration;
+
+  const dprRaw = String(opts.dpr ?? '1').trim();
+  const parsedDpr = Number(dprRaw);
+  if (!/^\d+$/.test(dprRaw) || !Number.isInteger(parsedDpr) || parsedDpr < 1) {
+    throw new Error(`Invalid --dpr "${opts.dpr}": must be a positive integer.`);
+  }
+  dpr = parsedDpr;
+
+  const timeoutMs = Number(opts.timeout) > 0 ? Number(opts.timeout) : 20000;
+
   let refImg = null;
   let viewportWidth = 1440;
   let viewportHeight = 900;
@@ -55,10 +96,15 @@ try {
 
   if (opts.ref) {
     refImg = readReferencePng(opts.ref);
-    // Keep viewport on full frame when --selector is specified or custom --viewport given
-    if (!opts.selector && (!opts.viewport || opts.viewport === '1440x900')) {
-      viewportWidth = Math.ceil(refImg.width / dpr);
-      viewportHeight = Math.ceil(refImg.height / dpr);
+    if (refImg.width % dpr !== 0 || refImg.height % dpr !== 0) {
+      throw new Error(
+        `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`
+      );
+    }
+    const viewportExplicit = program.getOptionValueSource('viewport') !== 'default';
+    if (!viewportExplicit) {
+      viewportWidth = refImg.width / dpr;
+      viewportHeight = refImg.height / dpr;
     }
   }
 
@@ -73,7 +119,7 @@ try {
 
   const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
 
-  await page.goto(opts.url, { waitUntil: 'networkidle', timeout: 20000 });
+  await page.goto(opts.url, { waitUntil: 'networkidle', timeout: timeoutMs });
   await page.evaluate(() => document.fonts.ready);
 
   // Freeze animations, transitions, and blinking carets for deterministic capture
@@ -171,11 +217,43 @@ try {
     }
   }
 
+  let actualLandmarks = [];
+  if (opts.ref && mode === 'wireframe') {
+    const landmarkSelectors = String(opts.landmarks || 'header,nav,main,footer')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    actualLandmarks = await page.evaluate((selectors) => {
+      const results = [];
+      for (const sel of selectors) {
+        const els = Array.from(document.querySelectorAll(sel));
+        let idx = 0;
+        for (const el of els) {
+          const style = window.getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          if (style.display === 'none' || style.visibility === 'hidden' || rect.width <= 0 || rect.height <= 0) {
+            continue;
+          }
+          results.push({
+            selector: sel,
+            index: idx++,
+            x: Math.round(rect.x),
+            y: Math.round(rect.y),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          });
+        }
+      }
+      return results;
+    }, landmarkSelectors);
+  }
+
   await browser.close();
   browser = null;
 
   gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
   if (opts.ref && refImg) {
+    const expectedLandmarks = mode === 'wireframe' ? resolveExpectedLandmarks(opts.ref, opts.refLandmarks) : null;
     gate2Result = compareVisual({
       refImg,
       actualPath,
@@ -185,6 +263,8 @@ try {
       mode,
       maskBoxes,
       dpr,
+      fullPage: Boolean(opts.fullPage),
+      wireframe: mode === 'wireframe' ? { actualLandmarks, expectedLandmarks, tolerance: 4 } : null,
     });
     gate2Result.artifacts = { ...gate2Result.artifacts, reference: opts.ref };
   }
@@ -196,7 +276,7 @@ try {
     url: opts.url,
     mode,
     dpr,
-    iteration: Number(opts.iteration),
+    iteration,
     passed,
     gate1Passed: Boolean(gate1Result?.passed),
     gate2Passed: Boolean(gate2Result?.passed),
@@ -208,7 +288,7 @@ try {
 
   const output = {
     passed,
-    iteration: Number(opts.iteration),
+    iteration,
     durationMs,
     gate1: gate1Result,
     gate2: gate2Result,
@@ -224,13 +304,33 @@ try {
     } catch {}
   }
   const durationMs = Date.now() - startMs;
+  const errMsg = err.message || String(err);
+  let telemetryPath = null;
+  try {
+    const parsedIter = Number(opts.iteration);
+    telemetryPath = recordTelemetry(opts.out, {
+      url: opts.url,
+      mode,
+      dpr,
+      iteration: Number.isInteger(parsedIter) ? parsedIter : null,
+      passed: false,
+      gate1Passed: Boolean(gate1Result?.passed),
+      gate2Passed: false,
+      mismatchPct: null,
+      durationMs,
+      error: errMsg,
+      model: opts.model,
+      harness: opts.harness,
+    });
+  } catch {}
   const failureOutput = {
     passed: false,
-    iteration: Number(opts.iteration) || 1,
+    iteration: Number.isInteger(Number(opts.iteration)) ? Number(opts.iteration) : null,
     durationMs,
-    error: err.message || String(err),
+    error: errMsg,
     gate1: gate1Result,
     gate2: gate2Result,
+    telemetry: telemetryPath,
   };
   console.log(JSON.stringify(failureOutput, null, 2));
   process.exit(1);

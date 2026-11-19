@@ -8,8 +8,8 @@
 # High-fi pixelmatch mode (default)
 node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --ref ./ref.png --dpr 1 --max-diff 0.5
 
-# Wireframe / structural mode (skips pixelmatch, runs Gate 1 + captures composite)
-node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --ref ./wireframe.png --mode wireframe
+# Wireframe / structural mode (compares landmark boxes <= 4px tolerance + captures composite)
+node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --ref ./wireframe.png --ref-landmarks ./wireframe.landmarks.json --mode wireframe
 ```
 
 ## Architecture

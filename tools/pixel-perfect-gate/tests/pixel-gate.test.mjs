@@ -31,6 +31,15 @@ test.before(async () => {
   fs.mkdirSync(tmpOut, { recursive: true });
   server = http.createServer((req, res) => {
     const cleanUrl = (req.url || '/').split('?')[0];
+    if (cleanUrl === '/slow-timeout') {
+      setTimeout(() => {
+        if (!res.writableEnded) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end('<html><body>Delayed</body></html>');
+        }
+      }, 4000);
+      return;
+    }
     const filePath = path.join(fixturesDir, cleanUrl.replace(/^\//, ''));
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       res.writeHead(404);
@@ -125,12 +134,97 @@ test('supports wireframe mode without failing on pixelmatch diffs', async () => 
     '--url', `${baseUrl}/wireframe-variant.html`,
     '--ref', ref1xPath,
     '--mode', 'wireframe',
+    '--landmarks', '.card',
     '--out', outDir,
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
   assert.equal(json.gate2.mode, 'wireframe');
   assert.equal(fs.existsSync(json.gate2.artifacts.composite), true);
+});
+
+test('wireframe mode: passes color-only changes, fails on >4px landmark shift and blank page', async () => {
+  const wireRef = path.join(fixturesDir, 'wireframe-base-1x.png');
+  const wireLandmarks = path.join(fixturesDir, 'wireframe-base.landmarks.json');
+
+  // 1. Color-only change with identical landmark boxes -> passes
+  const passRun = await runCli([
+    '--url', `${baseUrl}/wireframe-color-only.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', wireLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-color-only'),
+  ]);
+  assert.equal(passRun.code, 0);
+  assert.equal(passRun.json.passed, true);
+  assert.equal(passRun.json.gate2.passed, true);
+  assert.equal(passRun.json.gate2.findings.length, 0);
+
+  // 2. Shifted <main> landmark (>4px) -> fails
+  const shiftRun = await runCli([
+    '--url', `${baseUrl}/wireframe-shifted.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', wireLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-shifted'),
+  ]);
+  assert.equal(shiftRun.code, 1);
+  assert.equal(shiftRun.json.passed, false);
+  assert.equal(shiftRun.json.gate2.passed, false);
+  assert.ok(shiftRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+
+  // 3. Blank page (0 landmarks) -> fails
+  const blankRun = await runCli([
+    '--url', `${baseUrl}/wireframe-blank.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', wireLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-blank'),
+  ]);
+  assert.equal(blankRun.code, 1);
+  assert.equal(blankRun.json.passed, false);
+  assert.equal(blankRun.json.gate2.passed, false);
+  assert.ok(blankRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.missing-page-landmarks'));
+});
+
+test('passes against committed reference PNG generated outside the test run', async () => {
+  const committedRef = path.join(fixturesDir, 'committed-card-1x.png');
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/committed-card.html`,
+    '--ref', committedRef,
+    '--out', path.join(tmpOut, 'run-committed-1x'),
+  ]);
+  assert.equal(code, 0);
+  assert.equal(json.passed, true);
+  assert.equal(json.gate2.passed, true);
+  assert.equal(json.gate2.mismatchPct, 0);
+});
+
+test('--full-page passes on exact committed full-page PNG and fails on height mismatch', async () => {
+  const fullRef = path.join(fixturesDir, 'committed-fullpage-1x.png');
+  const passRun = await runCli([
+    '--url', `${baseUrl}/committed-fullpage.html`,
+    '--ref', fullRef,
+    '--viewport', '480x280',
+    '--full-page',
+    '--out', path.join(tmpOut, 'run-fullpage-pass'),
+  ]);
+  assert.equal(passRun.code, 0);
+  assert.equal(passRun.json.passed, true);
+  assert.equal(passRun.json.gate2.dimensions, '480x420');
+  assert.equal(passRun.json.gate2.mismatchPct, 0);
+
+  const failRun = await runCli([
+    '--url', `${baseUrl}/fullpage-height-mismatch.html`,
+    '--ref', fullRef,
+    '--viewport', '480x280',
+    '--full-page',
+    '--out', path.join(tmpOut, 'run-fullpage-fail'),
+  ]);
+  assert.equal(failRun.code, 1);
+  assert.equal(failRun.json.passed, false);
+  assert.equal(failRun.json.gate2.passed, false);
+  assert.match(failRun.json.gate2.error, /Dimension mismatch/);
 });
 
 test('flags overlapping siblings when data-allow-overlap is absent', async () => {
@@ -158,18 +252,17 @@ test('flags clipped text and console errors in Gate 1', async () => {
   assert.ok(json.gate1.consoleErrors.length >= 1);
 });
 
-test('supports --selector cropping with full-frame reference', async () => {
-  const outDir = path.join(tmpOut, 'run-selector-fullref');
+test('supports --selector with omitted --viewport using full-frame reference dimensions', async () => {
+  const outDir = path.join(tmpOut, 'run-selector-omitted-viewport');
   const { code, json } = await runCli([
     '--url', `${baseUrl}/passing-card.html`,
     '--ref', ref1xPath,
     '--selector', '.card',
-    '--viewport', '480x280',
     '--out', outDir,
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate1.passed, true);
+  assert.equal(json.gate1.viewport, '480x280');
   assert.equal(json.gate2.passed, true);
   assert.equal(json.gate2.mismatchPct, 0);
 });
@@ -236,23 +329,34 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   assert.equal(run1.json.passed, true);
   assert.equal(run1.json.gate2.mismatchPct, 0);
 
-  // Verify saved artifacts: masked region uses the same opaque fill in Reference, Actual, and composite
+  // Verify saved artifacts: scan the ENTIRE masked bounding box in actual.png, diff.png, and composite-diff.png
   const { PNG } = await import('pngjs');
   const actualPng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.actual));
+  const diffPng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.diff));
   const compositePng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.composite));
-  const cx = Math.round(dynBox.x + dynBox.width / 2);
-  const cy = Math.round(dynBox.y + dynBox.height / 2);
-  const actIdx = (cy * actualPng.width + cx) * 4;
-  assert.deepEqual(Array.from(actualPng.data.slice(actIdx, actIdx + 4)), [20, 20, 20, 255]);
-
+  const startX = Math.max(0, Math.floor(dynBox.x));
+  const startY = Math.max(0, Math.floor(dynBox.y));
+  const endX = Math.min(actualPng.width, Math.ceil(dynBox.x + dynBox.width));
+  const endY = Math.min(actualPng.height, Math.ceil(dynBox.y + dynBox.height));
   const gap = 8;
-  const refPanelIdx = (cy * compositePng.width + cx) * 4;
-  const actPanelIdx = (cy * compositePng.width + (480 + gap + cx)) * 4;
-  const diffPanelIdx = (cy * compositePng.width + (480 * 2 + gap * 2 + cx)) * 4;
-  assert.deepEqual(Array.from(compositePng.data.slice(refPanelIdx, refPanelIdx + 4)), [20, 20, 20, 255]);
-  assert.deepEqual(Array.from(compositePng.data.slice(actPanelIdx, actPanelIdx + 4)), [20, 20, 20, 255]);
-  // Diff panel should not be a solid white slab (alpha-0 artifact) or red diff
-  assert.notEqual(compositePng.data[diffPanelIdx], 255);
+
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      const actIdx = (y * actualPng.width + x) * 4;
+      assert.deepEqual(Array.from(actualPng.data.slice(actIdx, actIdx + 4)), [20, 20, 20, 255]);
+
+      const diffIdx = (y * diffPng.width + x) * 4;
+      // No red diff pixel (255,0,0) inside the masked box in diff.png
+      assert.notEqual(diffPng.data[diffIdx], 255);
+
+      const refPanelIdx = (y * compositePng.width + x) * 4;
+      const actPanelIdx = (y * compositePng.width + (480 + gap + x)) * 4;
+      const diffPanelIdx = (y * compositePng.width + (480 * 2 + gap * 2 + x)) * 4;
+      assert.deepEqual(Array.from(compositePng.data.slice(refPanelIdx, refPanelIdx + 4)), [20, 20, 20, 255]);
+      assert.deepEqual(Array.from(compositePng.data.slice(actPanelIdx, actPanelIdx + 4)), [20, 20, 20, 255]);
+      assert.notEqual(compositePng.data[diffPanelIdx], 255);
+    }
+  }
 
   // 2. Target page has changes inside #dyn, WITHOUT --mask -> fails with diff
   const run2 = await runCli([
@@ -276,25 +380,14 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   assert.ok(run3.json.gate2.mismatchPct > 0);
 });
 
-test('handles odd reference dimensions at @2x DPR with 0% mismatch on self-crop', async () => {
+test('fails with a dimension finding when reference dimensions are not divisible by --dpr', async () => {
   const outDir = path.join(tmpOut, 'run-odd-2x');
   const oddRefPath = path.join(tmpOut, 'ref-odd-101x51.png');
 
-  // Generate 101x51 reference image from odd-card.html
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage({ viewport: { width: 51, height: 26 }, deviceScaleFactor: 2 });
-    await page.goto(`${baseUrl}/odd-card.html`, { waitUntil: 'networkidle' });
-    const rawOdd = path.join(tmpOut, 'odd-raw-102x52.png');
-    await page.screenshot({ path: rawOdd });
-    const { PNG } = await import('pngjs');
-    const { cropPng } = await import('../src/visual-diff.mjs');
-    const oddRawPng = PNG.sync.read(fs.readFileSync(rawOdd));
-    const odd101x51 = cropPng(oddRawPng, 0, 0, 101, 51);
-    fs.writeFileSync(oddRefPath, PNG.sync.write(odd101x51));
-  } finally {
-    await browser.close();
-  }
+  // Generate 101x51 reference image (not divisible by dpr=2)
+  const { PNG } = await import('pngjs');
+  const odd101x51 = new PNG({ width: 101, height: 51, fill: true });
+  fs.writeFileSync(oddRefPath, PNG.sync.write(odd101x51));
 
   const { code, json } = await runCli([
     '--url', `${baseUrl}/odd-card.html`,
@@ -302,31 +395,56 @@ test('handles odd reference dimensions at @2x DPR with 0% mismatch on self-crop'
     '--dpr', '2',
     '--out', outDir,
   ]);
-  assert.equal(code, 0);
-  assert.equal(json.passed, true);
-  assert.equal(json.gate2.dimensions, '101x51');
-  assert.equal(json.gate2.mismatchPct, 0);
-});
-
-test('emits valid JSON on stdout and exits 1 on fatal connection errors', async () => {
-  const outDir = path.join(tmpOut, 'run-fatal-conn');
-  const { code, json } = await runCli([
-    '--url', 'http://127.0.0.1:1/',
-    '--out', outDir,
-  ]);
   assert.equal(code, 1);
   assert.equal(json.passed, false);
-  assert.ok(typeof json.error === 'string');
+  assert.match(json.error, /not divisible by --dpr 2/);
+  assert.ok(fs.existsSync(json.telemetry));
 });
 
-test('emits valid JSON on stdout and exits 1 when reference file is missing', async () => {
-  const outDir = path.join(tmpOut, 'run-missing-ref');
-  const { code, json } = await runCli([
-    '--url', `${baseUrl}/passing-card.html`,
-    '--ref', path.join(tmpOut, 'non-existent-ref.png'),
-    '--out', outDir,
-  ]);
-  assert.equal(code, 1);
-  assert.equal(json.passed, false);
-  assert.ok(typeof json.error === 'string');
+test('rejects --iteration outside 1-5 with JSON on stdout and exit 1', async () => {
+  for (const badIter of ['0', '6', '-1', 'abc']) {
+    const outDir = path.join(tmpOut, `run-bad-iter-${badIter}`);
+    const { code, json } = await runCli([
+      '--url', `${baseUrl}/passing-card.html`,
+      '--iteration', badIter,
+      '--out', outDir,
+    ]);
+    assert.equal(code, 1);
+    assert.equal(json.passed, false);
+    assert.match(json.error, /--iteration/);
+  }
+});
+
+test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, timeout, missing selector, missing ref)', async () => {
+  const cases = [
+    {
+      name: 'conn-refused',
+      args: ['--url', 'http://127.0.0.1:1/'],
+    },
+    {
+      name: 'timeout',
+      args: ['--url', `${baseUrl}/slow-timeout`, '--timeout', '300'],
+    },
+    {
+      name: 'missing-selector',
+      args: ['--url', `${baseUrl}/passing-card.html`, '--ref', ref1xPath, '--selector', '#does-not-exist'],
+    },
+    {
+      name: 'missing-ref',
+      args: ['--url', `${baseUrl}/passing-card.html`, '--ref', path.join(tmpOut, 'non-existent-ref.png')],
+    },
+  ];
+
+  for (const c of cases) {
+    const outDir = path.join(tmpOut, `run-fatal-${c.name}`);
+    const { code, json } = await runCli([...c.args, '--out', outDir]);
+    assert.equal(code, 1, `${c.name} should exit 1`);
+    assert.equal(json.passed, false, `${c.name} should report passed: false`);
+    assert.ok(typeof json.error === 'string' && json.error.length > 0, `${c.name} should include error`);
+    assert.ok(json.telemetry && fs.existsSync(json.telemetry), `${c.name} should write telemetry.jsonl`);
+    const lines = fs.readFileSync(json.telemetry, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    assert.equal(lines.length, 1, `${c.name} should have 1 telemetry entry`);
+    assert.equal(lines[0].passed, false);
+    assert.ok(typeof lines[0].error === 'string');
+  }
 });

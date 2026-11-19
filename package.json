@@ -9,6 +9,7 @@
     "apps/*"
   ],
   "scripts": {
+    "test": "npm test --workspaces --if-present",
     "verify": "node scripts/verify.mjs",
     "verify:pr": "node scripts/verify-pr-ready.mjs",
     "linear:status": "node scripts/sync-linear.mjs --status"

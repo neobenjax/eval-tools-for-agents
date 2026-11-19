@@ -5,7 +5,7 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 ## Tools
 
 - **`tools/pixel-perfect-gate`** *(Milestone 1–2)*: Hybrid Playwright CLI + cross-harness `SKILL.md` for deterministic layout/runtime auditing (Gate 1), `pixelmatch` / wireframe visual diffing (Gate 2), and interactive user-flow verification (Gate 3).
-- **`apps/dashboard`** *(Milestone 3)*: Progression & Eval Telemetry Dashboard tracking Linear stages (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) and model/harness benchmark runs.
+- **`apps/dashboard`** *(Milestone 3)*: Eval Benchmarks & Progression Dashboard—tracking model/harness benchmark runs (primary: pass rates, iterations, `mismatchPct`, composite diffs) alongside the server-side Linear Delivery Board (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`).
 
 ## Quick Links
 

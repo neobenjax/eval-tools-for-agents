@@ -45,3 +45,12 @@ node scripts/verify-pr-ready.mjs
 ## 6. Deterministic Eval & Agent Looping Standard
 - Every tool in `tools/*` MUST expose a deterministic CLI returning JSON (`passed`, `telemetry`, `artifacts`) and support autonomous **Agent Looping** (max 5 iterations) across harnesses.
 - Keep `CONTEXT.md` lean; place tool-specific context inside `tools/<tool>/CONTEXT.md`.
+
+## 7. Strict Self-Review Before Opening a PR (Reviewer-Ready Standard)
+PRs are reviewed by a strict gatekeeper (`@benjaminszaiagent`) that approves only when every acceptance criterion has evidence and no real bugs remain. Do this **before** pushing and opening the PR, and fill in every section of `.github/PULL_REQUEST_TEMPLATE.md` with real output:
+1. **Evidence per criterion.** Copy each acceptance criterion verbatim from the Linear issue / `SPEC.md` §8 and attach proof: the exact command and its key output, the test that asserts it, or a CI job link. "Should work" is not evidence; a platform named in a criterion (e.g. Windows) needs a run on that platform.
+2. **Break it on purpose.** For every new check, gate, or test, write at least one input that must fail and confirm it does. Cover both directions: extras rejected **and** missing/deleted items rejected. Use mutation tests on scratch copies (delete a key, add a bogus one, empty a section, CRLF line endings). A check that cannot fail is a bug.
+3. **One fact, every place.** When a status, decision, key, or behavior changes, `git grep` the old wording and update every occurrence in the same commit (`SPEC.md` §1/§4/§8/§9/§10/§11, `README.md`, `CONTEXT.md`, help text).
+4. **Look at the artifacts.** Open the PNGs, JSON, and logs the tool produces and confirm they agree with the reported result (e.g. masked regions look the same in every composite panel).
+5. **Runs where it matters.** New scripts/checks must run in `.github/workflows/ci.yml`, work on a detached HEAD (`GITHUB_HEAD_REF`), and pass on Windows (primary dev platform) and `ubuntu-latest`.
+6. **Final pass as the reviewer.** Prompt yourself: *"Act as a strict reviewer. For each acceptance criterion, show evidence. Then try to break every new check with mutation tests and list anything that still passes when it shouldn't."* Fix everything it finds, then open the PR. Be explicit in the PR body about anything out of scope or left for later.

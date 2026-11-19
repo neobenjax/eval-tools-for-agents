@@ -213,12 +213,14 @@ test('supports --selector with element-sized reference without viewport overflow
 test('supports --mask: ignores change inside mask, fails without mask, and fails on outside change', async () => {
   const refMaskPath = path.join(tmpOut, 'ref-mask.png');
 
-  // Capture baseline reference of dynamic-masked.html
+  // Capture baseline reference of dynamic-masked.html and #dyn bounding box
   const browser = await chromium.launch();
+  let dynBox;
   try {
     const page = await browser.newPage({ viewport: { width: 480, height: 280 } });
     await page.goto(`${baseUrl}/dynamic-masked.html`, { waitUntil: 'networkidle' });
     await page.screenshot({ path: refMaskPath });
+    dynBox = await page.locator('#dyn').boundingBox();
   } finally {
     await browser.close();
   }
@@ -233,6 +235,24 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   assert.equal(run1.code, 0);
   assert.equal(run1.json.passed, true);
   assert.equal(run1.json.gate2.mismatchPct, 0);
+
+  // Verify saved artifacts: masked region uses the same opaque fill in Reference, Actual, and composite
+  const { PNG } = await import('pngjs');
+  const actualPng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.actual));
+  const compositePng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.composite));
+  const cx = Math.round(dynBox.x + dynBox.width / 2);
+  const cy = Math.round(dynBox.y + dynBox.height / 2);
+  const actIdx = (cy * actualPng.width + cx) * 4;
+  assert.deepEqual(Array.from(actualPng.data.slice(actIdx, actIdx + 4)), [20, 20, 20, 255]);
+
+  const gap = 8;
+  const refPanelIdx = (cy * compositePng.width + cx) * 4;
+  const actPanelIdx = (cy * compositePng.width + (480 + gap + cx)) * 4;
+  const diffPanelIdx = (cy * compositePng.width + (480 * 2 + gap * 2 + cx)) * 4;
+  assert.deepEqual(Array.from(compositePng.data.slice(refPanelIdx, refPanelIdx + 4)), [20, 20, 20, 255]);
+  assert.deepEqual(Array.from(compositePng.data.slice(actPanelIdx, actPanelIdx + 4)), [20, 20, 20, 255]);
+  // Diff panel should not be a solid white slab (alpha-0 artifact) or red diff
+  assert.notEqual(compositePng.data[diffPanelIdx], 255);
 
   // 2. Target page has changes inside #dyn, WITHOUT --mask -> fails with diff
   const run2 = await runCli([

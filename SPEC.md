@@ -4,7 +4,7 @@
 **Repository:** `git@github.com:neobenjax/eval-tools-for-agents.git`  
 **Linear Team:** `Side Projects` (`SIDE`)  
 **Leader & Assignee:** Benjamin Sanchez (`neobenjax`)  
-**Spec revision:** planning review GitHub issue #3 (draft; not yet on `main`)
+**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-27` assigned (follow-up to PR #5 & Issue #3).
 
 `scripts/sync-linear.mjs --sync-spec` only rewrites the `[ ]` / `[x]` on a line that matches `^- \[ \] \*\*SIDE-<n>\*\*`. It does not change the status words after the key. Those words are maintained in this file. A key is `[x]` only when its Linear stage is `Approved`. `NEW-*` rows are not Linear keys. Do not rename them to `SIDE-*` until Linear assigns a key.
 
@@ -29,7 +29,7 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 
 That engine is the core. It is not yet the product above. Nothing in SIDE-10 through SIDE-23 ingests a project's routes or acceptance list, runs a user flow, installs a global CLI for an arbitrary repo, or defines the report an agent must read.
 
-**Hybrid shape for v1.** Playwright is the only browser front end. The cross-harness `SKILL.md` tells the agent to run the global CLI, read the JSON report, stop at 5 iterations, and export a Playwright `.spec.ts` that replays the scenarios. An MCP wrapper is later work, after this CLI contract is stable. Chrome DevTools MCP is not part of v1 (see section 11).
+**Hybrid shape for v1.** Playwright is the deterministic browser core (`pixel-gate` CLI + scenario runner). The cross-harness `SKILL.md` tells the agent to run the global CLI, read the JSON report, stop at 5 iterations, and export a Playwright `.spec.ts` that replays the scenarios. Agents running in harnesses with `chrome-devtools-mcp` enabled (not limited to Antigravity) may detect its availability and use it opportunistically for live DOM/CSS inspection. An MCP wrapper around `pixel-gate` itself is later work, after the Section 6 CLI contract is stable.
 
 **Windows-first** still means the installer, path layout, and docs work on Windows (directory junctions) and on Unix (symlinks). It does not mean a Windows screenshot is the pixel source of truth. Section 5 states that split. Section 11 marks it pending owner confirmation.
 
@@ -44,11 +44,12 @@ v1 is the first usable release: install once locally, point the CLI at a web pro
 - Gate 1 layout and runtime checks (already in PR #2).
 - Gate 2 pixel comparison plus a wireframe mode that fails when landmark boxes move (SIDE-16 re-scope).
 - Gate 3 as two parts: a static control audit and a scenario runner (SIDE-19 re-scope).
-- Spec intake: one reference PNG per configured route and viewport, and a markdown acceptance list mapped to scenarios (NEW-3).
+- Spec intake: one reference PNG per configured route and viewport, and a markdown acceptance list mapped to scenarios (SIDE-26).
 - The agent report contract in section 6, on every exit.
 - Agent looping with a hard cap of 5 iterations, instructed by the skill and visible in the report's `iteration` field.
 - Artifacts written only under `.visual-eval/` in the target repo.
-- An optional vision pass that is off unless the project config turns it on, and non-blocking unless the project config says otherwise (NEW-4).
+- An optional vision pass that is off unless the project config turns it on, and advisory (`blocking: false`) unless the project config says otherwise (SIDE-27).
+- Optional capability-detected use of `chrome-devtools-mcp` by agents in v1 when enabled in the host harness (Playwright remains the deterministic core).
 
 ### Out of scope
 
@@ -56,8 +57,7 @@ v1 is the first usable release: install once locally, point the CLI at a web pro
 - Claude Code-specific installation testing (not installed on the target workstation). Skill text may stay compatible with Claude Code's skill layout.
 - Multi-reviewer GitHub PR triage bots or minimum-approval branch blockers.
 - A live Figma connection, plugin, or API. v1 references are exported PNG files.
-- Chrome DevTools MCP.
-- An MCP server in front of the CLI. Add one only after section 6 is implemented and covered by a fixture.
+- An MCP server in front of the `pixel-gate` CLI. Add one only after section 6 is implemented and covered by a fixture.
 - A vision-model HTTP call inside the CLI. The caller may attach a verdict JSON. The CLI does not fetch one.
 - A CI job whose pass/fail depends on a model looping until `passed: true`.
 - The progression dashboard (SIDE-23) as a gate for this release. M3 follows one real project loop that used the report schema.
@@ -108,21 +108,21 @@ PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) implements these five issues in one 
 
 ### Milestone 1 follow-on: Agent report
 
-- [ ] **NEW-1** `[M1.6]` Versioned agent report schema on every exit *(Linear key pending · Depends on: SIDE-18 · Todo)*
+- [ ] **SIDE-24** `[M1.6]` Versioned agent report schema on every exit *(Depends on: SIDE-18 · Todo)*
 
 ### Milestone 2: Cross-Harness Skill, Spec Intake & Gate 3
 
-- [ ] **NEW-2** `[M2.0a]` Global `pixel-gate` install and per-project config *(Linear key pending · Depends on: NEW-1 · Todo)*
-- [ ] **NEW-3** `[M2.0b]` Spec intake: reference PNGs and markdown acceptance list *(Linear key pending · Depends on: NEW-2 · Todo)*
-- [ ] **SIDE-19** `[M2.1]` Gate 3 static audit (`interaction-audit.mjs`) plus scenario runner *(Track A · Depends on: SIDE-18, NEW-2 · Todo · re-scoped)*
-- [ ] **NEW-4** `[M2.1b]` Optional vision pass, off by default *(Linear key pending · Depends on: NEW-1, SIDE-19 · Todo)*
-- [ ] **SIDE-20** `[M2.2]` Author cross-harness `SKILL.md` with Agent Looping protocol *(Track A · Depends on: NEW-1, NEW-2, SIDE-19 · Todo · re-scoped)*
-- [ ] **SIDE-21** `[M2.3]` Install skill links, global CLI, and Chromium (`tools/pixel-perfect-gate/scripts/install.mjs`) *(Track B · Depends on: SIDE-20, NEW-2 · Todo · re-scoped)*
-- [ ] **SIDE-22** `[M2.4]` Harness smoke check: skill listed and scripted prompt returns schema JSON *(Verification · Depends on: SIDE-19, SIDE-20, SIDE-21 · Todo · re-scoped)*
+- [ ] **SIDE-25** `[M2.0a]` Global `pixel-gate` install and per-project config *(Depends on: SIDE-24 · Todo)*
+- [ ] **SIDE-26** `[M2.0b]` Spec intake: reference PNGs and markdown acceptance list *(Depends on: SIDE-25 · Todo)*
+- [ ] **SIDE-19** `[M2.1]` Gate 3 static audit (`interaction-audit.mjs`) plus scenario runner *(Track A · Depends on: SIDE-18, SIDE-25 · Todo · re-scoped)*
+- [ ] **SIDE-27** `[M2.1b]` Optional vision pass, off by default (advisory) *(Depends on: SIDE-24, SIDE-19 · Todo)*
+- [ ] **SIDE-20** `[M2.2]` Author cross-harness `SKILL.md` with Agent Looping protocol *(Track A · Depends on: SIDE-24, SIDE-25, SIDE-19 · Todo · re-scoped)*
+- [ ] **SIDE-21** `[M2.3]` Install skill links, global CLI, and Chromium (`tools/pixel-perfect-gate/scripts/install.mjs`) *(Track B · Depends on: SIDE-20, SIDE-25 · Todo · re-scoped)*
+- [ ] **SIDE-22** `[M2.4]` Harness smoke check: Antigravity Desktop, Antigravity CLI, and Cursor *(Verification · Depends on: SIDE-19, SIDE-20, SIDE-21 · Todo · re-scoped)*
 
 ### Milestone 3: Eval history viewer
 
-- [ ] **SIDE-23** `[M3.1]` Eval telemetry viewer grouped by model, harness, and iteration *(Integration · Depends on: NEW-1, SIDE-19 · Todo · re-scoped · not a v1 blocker)*
+- [ ] **SIDE-23** `[M3.1]` Eval Benchmarks & Linear Delivery Board viewer *(Integration · Depends on: SIDE-24, SIDE-19 · Todo · re-scoped · not a v1 blocker)*
 
 When a `NEW-*` row receives a Linear key, replace the token in this file and in section 8, set Linear `blockedBy` from the `Depends on` list, and only then use that key in a branch name and in `Closes`. Until then the row stays `NEW-*` and says `Linear key pending`.
 
@@ -305,7 +305,7 @@ PR #2 already compares pixels, honors `--dpr`, writes the 3-panel composite, and
 - [ ] A fixture covers a `console.error`. That listener exists in PR #2 and is untested.
 - [ ] Reference dimensions not divisible by `--dpr` fail with a dimension finding and do not round the viewport.
 
-### NEW-1 report schema (Linear key pending)
+### SIDE-24 report schema (`M1.6`)
 
 - [ ] Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.
 - [ ] Each Gate 1 element finding includes `selector`, `box`, and short `text`.
@@ -315,7 +315,7 @@ PR #2 already compares pixels, honors `--dpr`, writes the 3-panel composite, and
 - [ ] A fixture asserts the required keys.
 - [ ] `.visual-eval/telemetry.jsonl` gains `schemaVersion` and the finding ids for that run, and keeps the PR #2 fields (`iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, `harness`).
 
-### NEW-2 per-project config and global CLI (Linear key pending)
+### SIDE-25 per-project config and global CLI (`M2.0a`)
 
 - [ ] After one install, `pixel-gate` resolves on `PATH`.
 - [ ] `pixel-gate --help` exits `0` on Windows and on Ubuntu.
@@ -323,7 +323,7 @@ PR #2 already compares pixels, honors `--dpr`, writes the 3-panel composite, and
 - [ ] The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.
 - [ ] `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.
 
-### NEW-3 spec intake (Linear key pending)
+### SIDE-26 spec intake (`M2.0b`)
 
 - [ ] Reference PNGs are keyed by route id and viewport name, as in section 7.
 - [ ] A markdown acceptance list maps each scenario heading to a scenario id. An unmapped heading and an unmapped scenario each produce a finding and exit `1`.
@@ -350,7 +350,7 @@ Scenario runner:
 
 The static scan may also run inside the Gate 1 browser session as a cheap add-on. Its findings still use the `gate3.` id prefix so agents can tell the gates apart.
 
-### NEW-4 vision pass (Linear key pending, off by default)
+### SIDE-27 vision pass (`M2.1b`, off by default)
 
 - [ ] With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.
 - [ ] With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.
@@ -433,24 +433,19 @@ Tracked so later issues extend the engine instead of replacing it.
 
 ---
 
-## 11. Decisions Needed from Owner
+## 11. Owner Decisions (Resolved)
 
-Each item is **pending**. The rest of this spec uses the recommended default so implementation can continue. If the owner picks the other option, update sections 2, 5, 6, and 8 to match before work that depends on it merges.
+All six planning questions from Issue #3 have been resolved by the owner (`@neobenjax`):
 
 1. **Pixel bar when the developer OS cannot match a Figma export.**  
-   **Pending.** Recommended default: pinned Chromium on Linux CI (`ubuntu-latest`) is the source of truth. A mismatch there blocks. A mismatch that appears only on Windows or macOS is reported and does not block the merge. Section 5 is written to this default.
-
+   **Resolved:** Pinned Chromium on Linux CI (`ubuntu-latest`) is the strict pixel source of truth. A mismatch there blocks. A mismatch that appears only on Windows or macOS is reported and does not block.
 2. **May a vision verdict fail a run?**  
-   **Pending.** Recommended default: a vision verdict only explains a diff. Deterministic gates set `passed`. `vision.blocking` exists and defaults to `false`. The CLI does not call a model host. NEW-4 is written to this default.
-
+   **Resolved:** Advisory by default (`vision.blocking: false`). The tool is designed for agents to loop and fix UI/UX issues; deterministic gates set `passed` unless a project config explicitly sets `vision.blocking: true`.
 3. **Is Chrome DevTools MCP part of the first module?**  
-   **Pending.** Recommended default: Playwright is the only browser front end in v1. No MCP wrapper and no Chrome DevTools MCP until the section 6 contract has a fixture. Section 2 lists both as out of scope.
-
+   **Resolved:** Both Playwright and Chrome DevTools MCP are supported in v1—with **Playwright as the deterministic core** (`pixel-gate` CLI + scenario runner), and agents in any capable harness (not limited to Antigravity) checking if `chrome-devtools-mcp` is enabled and using it opportunistically for live DOM/CSS inspection.
 4. **Which harnesses are required for the first usable release?**  
-   **Pending.** This file previously excluded Claude Code install testing and named Antigravity Desktop, Antigravity CLI, and Cursor together. Recommended default: v1 requires Cursor and a global CLI on `PATH`. Antigravity Desktop and Antigravity CLI remain installer targets in SIDE-21 and are smoke-tested when present. Their absence does not block v1. Claude Code install testing stays out of scope. SIDE-22 is written to this default.
-
+   **Resolved:** **Antigravity Desktop, Antigravity CLI, and Cursor** are required for v1. Claude Code symlink support stays compatible best-effort and will be tested post-MVP.
 5. **What does M3 show?**  
-   **Pending.** Recommended default: eval history for the target project under test, grouped by model, harness, and iteration. This repo's Linear board is an optional server-side view. The API key stays off the client. SIDE-23 is written to this default.
-
+   **Resolved:** **Both**—with primary focus on **Eval Benchmarks** (target project telemetry grouped by model, harness, and iteration) alongside the **Linear Delivery Board** (server-side only; `LINEAR_API_KEY` stays off the client).
 6. **Are references exported PNGs only, or is a live Figma connection in scope?**  
-   **Pending.** Recommended default: exported PNGs only in v1. No Figma API, plugin, or live sync. Section 2 and NEW-3 are written to this default.
+   **Resolved:** **Exported PNGs only** in v1 to avoid tying the tool to Figma, while leaving room for optional developer integrations later.

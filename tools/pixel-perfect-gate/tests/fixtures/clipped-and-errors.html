@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+    body { background: #0f172a; width: 480px; height: 280px; padding: 16px; color: #fff; }
+    .clipped-box {
+      width: 60px;
+      height: 20px;
+      overflow: hidden;
+      white-space: nowrap;
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="clipped-box">This is a long piece of text that definitely gets clipped</div>
+  <script>
+    console.error('Deliberate runtime console error for Gate 1 test');
+  </script>
+</body>
+</html>

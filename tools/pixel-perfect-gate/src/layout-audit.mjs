@@ -114,18 +114,12 @@ export async function runLayoutAudit(page) {
       }
     }
 
-    // Sibling overlap check (respects data-allow-overlap and negative-margin stacks)
+    // Sibling overlap check (respects data-allow-overlap)
     for (const parent of document.querySelectorAll('body *')) {
       if (!isVisible(parent) || parent.hasAttribute('data-allow-overlap')) continue;
       const children = Array.from(parent.children).filter((child) => {
         if (!isVisible(child) || child.hasAttribute('data-allow-overlap')) return false;
         const st = getComputedStyle(child);
-        const hasNegMargin =
-          parseFloat(st.marginLeft) < 0 ||
-          parseFloat(st.marginRight) < 0 ||
-          parseFloat(st.marginTop) < 0 ||
-          parseFloat(st.marginBottom) < 0;
-        if (hasNegMargin) return false;
         return st.position === 'static' || st.position === 'relative';
       });
 

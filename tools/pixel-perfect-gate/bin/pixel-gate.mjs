@@ -6,9 +6,10 @@
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import { PNG } from 'pngjs';
 import { program } from 'commander';
 import { attachRuntimeListeners, runLayoutAudit } from '../src/layout-audit.mjs';
-import { readReferencePng, compareVisual } from '../src/visual-diff.mjs';
+import { readReferencePng, compareVisual, cropPng } from '../src/visual-diff.mjs';
 import { recordTelemetry } from '../src/telemetry.mjs';
 
 program
@@ -35,40 +36,43 @@ const startMs = Date.now();
 const dpr = Number(opts.dpr) || 1;
 const mode = opts.mode === 'wireframe' ? 'wireframe' : 'pixel';
 
-let refImg = null;
-let viewportWidth = 1440;
-let viewportHeight = 900;
-
-if (opts.ref) {
-  try {
-    refImg = readReferencePng(opts.ref);
-    viewportWidth = Math.round(refImg.width / dpr);
-    viewportHeight = Math.round(refImg.height / dpr);
-  } catch (err) {
-    console.error(JSON.stringify({ passed: false, error: err.message }, null, 2));
-    process.exit(1);
-  }
-} else {
-  const [w, h] = opts.viewport.split('x').map(Number);
-  if (w > 0 && h > 0) {
-    viewportWidth = w;
-    viewportHeight = h;
-  }
-}
-
-fs.mkdirSync(opts.out, { recursive: true });
-const actualPath = path.join(opts.out, 'actual.png');
-
-const browser = await chromium.launch();
-const page = await browser.newPage({
-  viewport: { width: viewportWidth, height: viewportHeight },
-  deviceScaleFactor: dpr,
-});
-
-const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
-let gate1Result;
+let browser = null;
+let gate1Result = null;
+let gate2Result = null;
 
 try {
+  let refImg = null;
+  let viewportWidth = 1440;
+  let viewportHeight = 900;
+
+  if (opts.viewport) {
+    const [w, h] = opts.viewport.split('x').map(Number);
+    if (w > 0 && h > 0) {
+      viewportWidth = w;
+      viewportHeight = h;
+    }
+  }
+
+  if (opts.ref) {
+    refImg = readReferencePng(opts.ref);
+    // Keep viewport on full frame when --selector is specified or custom --viewport given
+    if (!opts.selector && (!opts.viewport || opts.viewport === '1440x900')) {
+      viewportWidth = Math.ceil(refImg.width / dpr);
+      viewportHeight = Math.ceil(refImg.height / dpr);
+    }
+  }
+
+  fs.mkdirSync(opts.out, { recursive: true });
+  const actualPath = path.join(opts.out, 'actual.png');
+
+  browser = await chromium.launch();
+  const page = await browser.newPage({
+    viewport: { width: viewportWidth, height: viewportHeight },
+    deviceScaleFactor: dpr,
+  });
+
+  const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
+
   await page.goto(opts.url, { waitUntil: 'networkidle', timeout: 20000 });
   await page.evaluate(() => document.fonts.ready);
 
@@ -103,70 +107,131 @@ try {
     ...g1Issues,
   };
 
-  // Gate 2: Capture Screenshot (in the same browser session)
-  if (opts.ref) {
-    const maskLocators = opts.mask
-      ? opts.mask
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((s) => page.locator(s))
-      : [];
+  // Compute mask bounding boxes before screenshot
+  const maskBoxes = [];
+  const maskLocators = [];
+  if (opts.mask) {
+    const selectors = opts.mask.split(',').map((s) => s.trim()).filter(Boolean);
+    let offsetBox = { x: 0, y: 0 };
+    if (opts.selector) {
+      const parentLocator = page.locator(opts.selector).first();
+      await parentLocator.waitFor({ state: 'visible', timeout: 5000 });
+      const parentBox = await parentLocator.boundingBox();
+      if (parentBox) offsetBox = parentBox;
+    }
 
+    for (const sel of selectors) {
+      const locs = page.locator(sel);
+      const count = await locs.count();
+      for (let i = 0; i < count; i++) {
+        const loc = locs.nth(i);
+        maskLocators.push(loc);
+        if (await loc.isVisible().catch(() => false)) {
+          const box = await loc.boundingBox();
+          if (box) {
+            maskBoxes.push({
+              x: box.x - offsetBox.x,
+              y: box.y - offsetBox.y,
+              width: box.width,
+              height: box.height,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Gate 2: Capture Screenshot
+  if (opts.ref) {
+    let selBox = null;
     if (opts.selector) {
       const locator = page.locator(opts.selector).first();
       await locator.waitFor({ state: 'visible', timeout: 5000 });
-      await locator.screenshot({ path: actualPath, mask: maskLocators });
-    } else {
-      await page.screenshot({
-        path: actualPath,
-        fullPage: Boolean(opts.fullPage),
-        mask: maskLocators,
-      });
+      selBox = await locator.boundingBox();
+    }
+
+    await page.screenshot({
+      path: actualPath,
+      fullPage: Boolean(opts.fullPage),
+    });
+
+    if (opts.selector && selBox) {
+      const actualRaw = PNG.sync.read(fs.readFileSync(actualPath));
+      const cropX = Math.round(selBox.x * dpr);
+      const cropY = Math.round(selBox.y * dpr);
+      const elemW = Math.round(selBox.width * dpr);
+      const elemH = Math.round(selBox.height * dpr);
+
+      const croppedActual = cropPng(actualRaw, cropX, cropY, elemW, elemH);
+      fs.writeFileSync(actualPath, PNG.sync.write(croppedActual));
+
+      if (refImg && (refImg.width > elemW + Math.ceil(dpr) || refImg.height > elemH + Math.ceil(dpr))) {
+        refImg = cropPng(refImg, cropX, cropY, elemW, elemH);
+      }
     }
   }
-} finally {
+
   await browser.close();
-}
+  browser = null;
 
-let gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
-if (opts.ref && refImg) {
-  gate2Result = compareVisual({
-    refImg,
-    actualPath,
-    outDir: opts.out,
-    threshold: Number(opts.threshold),
-    maxDiff: Number(opts.maxDiff),
+  gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
+  if (opts.ref && refImg) {
+    gate2Result = compareVisual({
+      refImg,
+      actualPath,
+      outDir: opts.out,
+      threshold: Number(opts.threshold),
+      maxDiff: Number(opts.maxDiff),
+      mode,
+      maskBoxes,
+      dpr,
+    });
+    gate2Result.artifacts = { ...gate2Result.artifacts, reference: opts.ref };
+  }
+
+  const durationMs = Date.now() - startMs;
+  const passed = Boolean(gate1Result?.passed && gate2Result?.passed);
+
+  const telemetryPath = recordTelemetry(opts.out, {
+    url: opts.url,
     mode,
+    dpr,
+    iteration: Number(opts.iteration),
+    passed,
+    gate1Passed: Boolean(gate1Result?.passed),
+    gate2Passed: Boolean(gate2Result?.passed),
+    mismatchPct: gate2Result?.mismatchPct ?? null,
+    durationMs,
+    model: opts.model,
+    harness: opts.harness,
   });
-  gate2Result.artifacts = { ...gate2Result.artifacts, reference: opts.ref };
+
+  const output = {
+    passed,
+    iteration: Number(opts.iteration),
+    durationMs,
+    gate1: gate1Result,
+    gate2: gate2Result,
+    telemetry: telemetryPath,
+  };
+
+  console.log(JSON.stringify(output, null, 2));
+  process.exit(passed ? 0 : 1);
+} catch (err) {
+  if (browser) {
+    try {
+      await browser.close();
+    } catch {}
+  }
+  const durationMs = Date.now() - startMs;
+  const failureOutput = {
+    passed: false,
+    iteration: Number(opts.iteration) || 1,
+    durationMs,
+    error: err.message || String(err),
+    gate1: gate1Result,
+    gate2: gate2Result,
+  };
+  console.log(JSON.stringify(failureOutput, null, 2));
+  process.exit(1);
 }
-
-const durationMs = Date.now() - startMs;
-const passed = gate1Result.passed && gate2Result.passed;
-
-const telemetryPath = recordTelemetry(opts.out, {
-  url: opts.url,
-  mode,
-  dpr,
-  iteration: Number(opts.iteration),
-  passed,
-  gate1Passed: gate1Result.passed,
-  gate2Passed: gate2Result.passed,
-  mismatchPct: gate2Result.mismatchPct ?? null,
-  durationMs,
-  model: opts.model,
-  harness: opts.harness,
-});
-
-const output = {
-  passed,
-  iteration: Number(opts.iteration),
-  durationMs,
-  gate1: gate1Result,
-  gate2: gate2Result,
-  telemetry: telemetryPath,
-};
-
-console.log(JSON.stringify(output, null, 2));
-process.exit(passed ? 0 : 1);

@@ -132,3 +132,181 @@ test('supports wireframe mode without failing on pixelmatch diffs', async () => 
   assert.equal(json.gate2.mode, 'wireframe');
   assert.equal(fs.existsSync(json.gate2.artifacts.composite), true);
 });
+
+test('flags overlapping siblings when data-allow-overlap is absent', async () => {
+  const outDir = path.join(tmpOut, 'run-overlap');
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/overlapping-layout.html`,
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.gate1.passed, false);
+  assert.ok(json.gate1.overlappingSiblings.length >= 1);
+});
+
+test('flags clipped text and console errors in Gate 1', async () => {
+  const outDir = path.join(tmpOut, 'run-clipped-console');
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/clipped-and-errors.html`,
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.gate1.passed, false);
+  assert.ok(json.gate1.clippedTextElements.length >= 1);
+  assert.ok(json.gate1.consoleErrors.length >= 1);
+});
+
+test('supports --selector cropping with full-frame reference', async () => {
+  const outDir = path.join(tmpOut, 'run-selector-fullref');
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/passing-card.html`,
+    '--ref', ref1xPath,
+    '--selector', '.card',
+    '--viewport', '480x280',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 0);
+  assert.equal(json.passed, true);
+  assert.equal(json.gate1.passed, true);
+  assert.equal(json.gate2.passed, true);
+  assert.equal(json.gate2.mismatchPct, 0);
+});
+
+test('supports --selector with element-sized reference without viewport overflow', async () => {
+  const outDir = path.join(tmpOut, 'run-selector-elemref');
+  const cardRefPath = path.join(tmpOut, 'card-elem-ref.png');
+
+  // Generate element-sized reference cropped from full 1x reference
+  const browser = await chromium.launch();
+  let selBox;
+  try {
+    const page = await browser.newPage({ viewport: { width: 480, height: 280 } });
+    await page.goto(`${baseUrl}/passing-card.html`, { waitUntil: 'networkidle' });
+    selBox = await page.locator('.card').boundingBox();
+  } finally {
+    await browser.close();
+  }
+
+  const { PNG } = await import('pngjs');
+  const { cropPng } = await import('../src/visual-diff.mjs');
+  const fullRef = PNG.sync.read(fs.readFileSync(ref1xPath));
+  const cardCrop = cropPng(fullRef, Math.round(selBox.x), Math.round(selBox.y), Math.round(selBox.width), Math.round(selBox.height));
+  fs.writeFileSync(cardRefPath, PNG.sync.write(cardCrop));
+
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/passing-card.html`,
+    '--ref', cardRefPath,
+    '--selector', '.card',
+    '--viewport', '480x280',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 0);
+  assert.equal(json.passed, true);
+  assert.equal(json.gate1.passed, true);
+  assert.equal(json.gate1.horizontalOverflow, false);
+  assert.equal(json.gate2.passed, true);
+  assert.equal(json.gate2.mismatchPct, 0);
+});
+
+test('supports --mask: ignores change inside mask, fails without mask, and fails on outside change', async () => {
+  const refMaskPath = path.join(tmpOut, 'ref-mask.png');
+
+  // Capture baseline reference of dynamic-masked.html
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 480, height: 280 } });
+    await page.goto(`${baseUrl}/dynamic-masked.html`, { waitUntil: 'networkidle' });
+    await page.screenshot({ path: refMaskPath });
+  } finally {
+    await browser.close();
+  }
+
+  // 1. Target page has changes inside #dyn, with --mask #dyn -> passes (0% mismatch)
+  const run1 = await runCli([
+    '--url', `${baseUrl}/dynamic-masked-changed.html`,
+    '--ref', refMaskPath,
+    '--mask', '#dyn',
+    '--out', path.join(tmpOut, 'run-mask-inside-pass'),
+  ]);
+  assert.equal(run1.code, 0);
+  assert.equal(run1.json.passed, true);
+  assert.equal(run1.json.gate2.mismatchPct, 0);
+
+  // 2. Target page has changes inside #dyn, WITHOUT --mask -> fails with diff
+  const run2 = await runCli([
+    '--url', `${baseUrl}/dynamic-masked-changed.html`,
+    '--ref', refMaskPath,
+    '--out', path.join(tmpOut, 'run-mask-inside-fail'),
+  ]);
+  assert.equal(run2.code, 1);
+  assert.equal(run2.json.passed, false);
+  assert.ok(run2.json.gate2.mismatchPct > 0);
+
+  // 3. Target page has changes outside #dyn, with --mask #dyn -> fails (diff outside mask detected)
+  const run3 = await runCli([
+    '--url', `${baseUrl}/dynamic-masked-outside.html`,
+    '--ref', refMaskPath,
+    '--mask', '#dyn',
+    '--out', path.join(tmpOut, 'run-mask-outside-fail'),
+  ]);
+  assert.equal(run3.code, 1);
+  assert.equal(run3.json.passed, false);
+  assert.ok(run3.json.gate2.mismatchPct > 0);
+});
+
+test('handles odd reference dimensions at @2x DPR with 0% mismatch on self-crop', async () => {
+  const outDir = path.join(tmpOut, 'run-odd-2x');
+  const oddRefPath = path.join(tmpOut, 'ref-odd-101x51.png');
+
+  // Generate 101x51 reference image from odd-card.html
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 51, height: 26 }, deviceScaleFactor: 2 });
+    await page.goto(`${baseUrl}/odd-card.html`, { waitUntil: 'networkidle' });
+    const rawOdd = path.join(tmpOut, 'odd-raw-102x52.png');
+    await page.screenshot({ path: rawOdd });
+    const { PNG } = await import('pngjs');
+    const { cropPng } = await import('../src/visual-diff.mjs');
+    const oddRawPng = PNG.sync.read(fs.readFileSync(rawOdd));
+    const odd101x51 = cropPng(oddRawPng, 0, 0, 101, 51);
+    fs.writeFileSync(oddRefPath, PNG.sync.write(odd101x51));
+  } finally {
+    await browser.close();
+  }
+
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/odd-card.html`,
+    '--ref', oddRefPath,
+    '--dpr', '2',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 0);
+  assert.equal(json.passed, true);
+  assert.equal(json.gate2.dimensions, '101x51');
+  assert.equal(json.gate2.mismatchPct, 0);
+});
+
+test('emits valid JSON on stdout and exits 1 on fatal connection errors', async () => {
+  const outDir = path.join(tmpOut, 'run-fatal-conn');
+  const { code, json } = await runCli([
+    '--url', 'http://127.0.0.1:1/',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.ok(typeof json.error === 'string');
+});
+
+test('emits valid JSON on stdout and exits 1 when reference file is missing', async () => {
+  const outDir = path.join(tmpOut, 'run-missing-ref');
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/passing-card.html`,
+    '--ref', path.join(tmpOut, 'non-existent-ref.png'),
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.ok(typeof json.error === 'string');
+});

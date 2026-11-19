@@ -43,6 +43,30 @@ export function buildCompositePng(panels, outPath) {
   return outPath;
 }
 
+export function cropPng(src, x, y, width, height) {
+  const dst = new PNG({ width, height, fill: true });
+  for (let dy = 0; dy < height; dy++) {
+    for (let dx = 0; dx < width; dx++) {
+      const srcX = x + dx;
+      const srcY = y + dy;
+      const dstIdx = (dy * width + dx) * 4;
+      if (srcX >= 0 && srcX < src.width && srcY >= 0 && srcY < src.height) {
+        const srcIdx = (srcY * src.width + srcX) * 4;
+        dst.data[dstIdx] = src.data[srcIdx];
+        dst.data[dstIdx + 1] = src.data[srcIdx + 1];
+        dst.data[dstIdx + 2] = src.data[srcIdx + 2];
+        dst.data[dstIdx + 3] = src.data[srcIdx + 3];
+      } else {
+        dst.data[dstIdx] = 0;
+        dst.data[dstIdx + 1] = 0;
+        dst.data[dstIdx + 2] = 0;
+        dst.data[dstIdx + 3] = 0;
+      }
+    }
+  }
+  return dst;
+}
+
 export function readReferencePng(refPath) {
   if (!fs.existsSync(refPath)) {
     throw new Error(`Reference image not found: ${refPath}`);
@@ -50,8 +74,8 @@ export function readReferencePng(refPath) {
   return PNG.sync.read(fs.readFileSync(refPath));
 }
 
-export function compareVisual({ refImg, actualPath, outDir, threshold, maxDiff, mode }) {
-  const actualImg = PNG.sync.read(fs.readFileSync(actualPath));
+export function compareVisual({ refImg, actualPath, outDir, threshold, maxDiff, mode, maskBoxes = [], dpr = 1 }) {
+  let actualImg = PNG.sync.read(fs.readFileSync(actualPath));
   const compositePath = path.join(outDir, 'composite-diff.png');
 
   if (mode === 'wireframe') {
@@ -70,20 +94,82 @@ export function compareVisual({ refImg, actualPath, outDir, threshold, maxDiff, 
     };
   }
 
+  // Handle minor rounding differences from odd reference dimensions at higher DPR
   if (actualImg.width !== refImg.width || actualImg.height !== refImg.height) {
-    return {
-      passed: false,
-      mode: 'pixel',
-      error: `Dimension mismatch: Reference is ${refImg.width}x${refImg.height}, Actual is ${actualImg.width}x${actualImg.height}. Check CSS container dimensions or --dpr.`,
-      dimensions: `${actualImg.width}x${actualImg.height}`,
-      artifacts: { actual: actualPath },
-    };
+    const diffW = Math.abs(actualImg.width - refImg.width);
+    const diffH = Math.abs(actualImg.height - refImg.height);
+    const maxDrift = Math.ceil(dpr);
+
+    if (diffW <= maxDrift && diffH <= maxDrift) {
+      // Crop / pad actualImg to match refImg dimensions exactly
+      const conformed = new PNG({ width: refImg.width, height: refImg.height, fill: true });
+      for (let y = 0; y < refImg.height; y++) {
+        for (let x = 0; x < refImg.width; x++) {
+          const dstIdx = (y * refImg.width + x) * 4;
+          if (x < actualImg.width && y < actualImg.height) {
+            const srcIdx = (y * actualImg.width + x) * 4;
+            conformed.data[dstIdx] = actualImg.data[srcIdx];
+            conformed.data[dstIdx + 1] = actualImg.data[srcIdx + 1];
+            conformed.data[dstIdx + 2] = actualImg.data[srcIdx + 2];
+            conformed.data[dstIdx + 3] = actualImg.data[srcIdx + 3];
+          } else {
+            conformed.data[dstIdx] = 0;
+            conformed.data[dstIdx + 1] = 0;
+            conformed.data[dstIdx + 2] = 0;
+            conformed.data[dstIdx + 3] = 0;
+          }
+        }
+      }
+      actualImg = conformed;
+      fs.writeFileSync(actualPath, PNG.sync.write(actualImg));
+    } else {
+      return {
+        passed: false,
+        mode: 'pixel',
+        error: `Dimension mismatch: Reference is ${refImg.width}x${refImg.height}, Actual is ${actualImg.width}x${actualImg.height}. Check CSS container dimensions or --dpr.`,
+        dimensions: `${actualImg.width}x${actualImg.height}`,
+        artifacts: { actual: actualPath },
+      };
+    }
+  }
+
+  // Prepare buffers for pixelmatch. If maskBoxes are provided, clear those regions on both buffers
+  const refData = Buffer.from(refImg.data);
+  const actData = Buffer.from(actualImg.data);
+
+  if (maskBoxes && maskBoxes.length > 0) {
+    for (const box of maskBoxes) {
+      const startX = Math.max(0, Math.floor(box.x * dpr));
+      const startY = Math.max(0, Math.floor(box.y * dpr));
+      const endX = Math.min(refImg.width, Math.ceil((box.x + box.width) * dpr));
+      const endY = Math.min(refImg.height, Math.ceil((box.y + box.height) * dpr));
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
+          const idx = (y * refImg.width + x) * 4;
+          refData[idx] = 0;
+          refData[idx + 1] = 0;
+          refData[idx + 2] = 0;
+          refData[idx + 3] = 0;
+          actData[idx] = 0;
+          actData[idx + 1] = 0;
+          actData[idx + 2] = 0;
+          actData[idx + 3] = 0;
+
+          // Sync actualImg so composite-diff.png and actual.png match diff.png
+          actualImg.data[idx] = 0;
+          actualImg.data[idx + 1] = 0;
+          actualImg.data[idx + 2] = 0;
+          actualImg.data[idx + 3] = 0;
+        }
+      }
+    }
+    fs.writeFileSync(actualPath, PNG.sync.write(actualImg));
   }
 
   const diff = new PNG({ width: refImg.width, height: refImg.height });
   const numDiffPixels = pixelmatch(
-    refImg.data,
-    actualImg.data,
+    refData,
+    actData,
     diff.data,
     refImg.width,
     refImg.height,

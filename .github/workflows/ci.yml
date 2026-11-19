@@ -8,15 +8,26 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies (when lockfile/workspaces exist)
-        run: npm install
-      - name: Install Playwright Chromium
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium (Linux)
+        if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium
-      - name: Run pre-flight verifier
+      - name: Install Playwright Chromium (Windows)
+        if: runner.os == 'Windows'
+        run: npx playwright install chromium
+      - name: Verify pixel-gate CLI help
+        run: node tools/pixel-perfect-gate/bin/pixel-gate.mjs --help
+      - name: Run pre-flight verifier and package tests
         run: node scripts/verify.mjs

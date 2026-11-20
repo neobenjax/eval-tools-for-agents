@@ -12,6 +12,10 @@ node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --r
 node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --ref ./wireframe.png --ref-landmarks ./wireframe.landmarks.json --mode wireframe
 ```
 
+## Milestone acceptance
+
+Green tests: `tests/acceptance/*.test.mjs`. Gap tests (expected to fail until the criterion is met): `tests/acceptance/pending/*.pending.mjs`. The map is `tests/acceptance/manifest.mjs`. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. See repo `SPEC.md` section 13. Milestone 2 tests will live in `tests/acceptance/m2/` and are not written yet.
+
 ## Architecture
 
 - **Single-Browser Pass:** `bin/pixel-gate.mjs` launches Chromium once, runs Gate 1 (`src/layout-audit.mjs`), captures screenshots, and runs Gate 2 (`src/visual-diff.mjs`).

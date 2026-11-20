@@ -4,7 +4,7 @@
 **Repository:** `git@github.com:neobenjax/eval-tools-for-agents.git`  
 **Linear Team:** `Side Projects` (`SIDE`)  
 **Leader & Assignee:** Benjamin Sanchez (`neobenjax`)  
-**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-27` assigned (follow-up to PR #5 & Issue #3). Reference-source scope extension (section 12, proposed rows `RS-1`–`RS-9`) added before M2.
+**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-27` assigned (follow-up to PR #5 & Issue #3). Reference-source scope extension (section 12, proposed rows `RS-1`–`RS-9`) added before M2. Test-driven milestone acceptance (section 13).
 
 `scripts/sync-linear.mjs --sync-spec` rewrites the `[ ]` / `[x]` on lines matching `^- \[ \] \*\*SIDE-<n>\*\*`. A key is `[x]` only when its Linear stage is `Approved`. All Linear-backed issues in Section 4 carry their native `SIDE-<n>` Linear key. Milestone 2b rows use proposed `RS-<n>` keys until the owner creates their Linear issues (section 12); `sync-linear` ignores them and `verify-pr-ready` checks their section 4/8/9 parity like `SIDE-<n>`.
 
@@ -28,6 +28,8 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 - Tests (15/15 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`.
 
 That engine is the core. It is not yet the product above. Nothing in PR #2 ingests a project's routes or acceptance list, runs a user flow, installs a global CLI for an arbitrary repo, or defines the Section 6 report an agent must read.
+
+Milestone acceptance is section 13. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. Criteria the product does not meet yet stay in the gap suite. `node scripts/acceptance-status.mjs` reports them, CI stays green, and a gap test cannot be skipped.
 
 **Hybrid shape for v1.** Playwright is the deterministic browser core (`pixel-gate` CLI + scenario runner). The cross-harness `SKILL.md` tells the agent to run the global CLI, read the JSON report, stop at 5 iterations, and export a Playwright `.spec.ts` that replays the scenarios. Agents running in harnesses with `chrome-devtools-mcp` enabled (not limited to Antigravity) may detect its availability and use it opportunistically as a live DOM/CSS inspection aid; host `chrome-devtools-mcp` inspection cannot change `passed`, `findings`, or `exitCode`. An MCP wrapper around `pixel-gate` itself is later work, after the Section 6 CLI contract is stable.
 
@@ -69,6 +71,7 @@ v1 is the first usable release: install once locally, point the CLI at a web pro
 
 - **DoR:** Upstream `SIDE-XX` dependencies in `blockedBy` are `Approved`. Scope for the issue is the matching acceptance list in section 8. Feature branch cut from `main`.
 - **DoD:** `node scripts/verify.mjs` passes, PR (`Closes SIDE-XX`) squash-merged to `main`, feature branch purged, `SPEC.md` checkbox and Linear stage set to `Approved`.
+- **Milestone done:** every acceptance test in that milestone's suite passes on both `windows-latest` and `ubuntu-latest`. Gap tests do not count (section 13). Pixel `mismatchPct` stays under the section 5 rule: `ubuntu-latest` with pinned Chromium is the source of truth.
 
 ### Definition of Done for v1
 
@@ -234,7 +237,7 @@ Each finding:
 - `severity`: `fail` or `info`. Only `fail` can set `passed` to `false`.
 - `selector`: CSS selector or `""` when the finding is not an element (dimension mismatch, config error).
 - `box`: `{ "x", "y", "width", "height" }` in CSS pixels, integers, viewport-relative, or `null` when no box exists.
-- `text`: one short sentence.
+- `text`: one short sentence. v1 does not set a character cap.
 
 Gate 1 findings that name an element (overflow, clip, overlap, broken image, occluded control) include a `box`. Console and network findings use `selector: ""`, `box: null`, and put the message or URL in `text`.
 
@@ -248,6 +251,10 @@ Gate 1 findings that name an element (overflow, clip, overlap, broken image, occ
 - Cap the array at 20 regions. Also set `regionCount` to the full count so a cap does not hide a page-wide miss.
 
 Wireframe findings use landmark ids (`gate2.landmark.main`) and the same `box` shape. They do not invent `mismatchPct`.
+
+### Telemetry line
+
+Each line of `.visual-eval/telemetry.jsonl` is one JSON object. It keeps the PR #2 fields `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`. It also has `schemaVersion` (`1`) and `findingIds`: the `findings[].id` values for that run, in the same order. A run with no findings writes `[]`.
 
 ### Exit codes
 
@@ -540,7 +547,7 @@ Tracked so later issues extend the engine instead of replacing it. The per-case 
 | Animations off, `document.fonts.ready` | Yes | Pinned font file and committed reference (section 5, SIDE-26) |
 | Network fail-closed | No | Section 5, exercised in SIDE-26 |
 | Global CLI and project config | Bin field only; docs use a repo-local path | SIDE-25 |
-| CI | `ubuntu-latest` + `windows-latest` (`npm ci`, `--help`, 15/15 tests) | Section 5 committed-PNG pixel bar on Ubuntu (SIDE-26) |
+| CI | `ubuntu-latest` + `windows-latest` (`npm ci`, `--help`, engine tests, section 13 acceptance suite, `acceptance-status`) | Section 5 committed-PNG pixel bar on Ubuntu (SIDE-26) |
 
 ---
 
@@ -732,3 +739,33 @@ Before every `url` capture, the CLI prints this disclaimer to stderr (stdout sta
 > Copying a website's design, text, images, or code can infringe copyright, trademark, or the site's terms of service. A visual or functional copy does not give you any rights to the original. Only publish a copy you own, have a license for, or have permission to make. This tool does not check rights for you.
 
 The capture proceeds only when the user has acknowledged it: `reference.acknowledgeCopyright: true` in the config, the `--acknowledge-copyright` flag, or `yes` at the interactive prompt (TTY only). Without it, the capture exits `1` with `gate2.reference-copy-unacknowledged.<route>` and a `blocked` stop reason. The acknowledgement time is stored in `manifest.json` (`copyAcknowledgedAt`). The skill (RS-9) tells agents to show the disclaimer to the user and never to acknowledge it on the user's behalf. The tool also keeps captured bundles under the git-ignored `.visual-eval/references/` unless the project copies them out (12.2), and never downloads assets for reuse in the result.
+
+---
+
+## 13. Test-Driven Milestone Acceptance
+
+Milestone work is driven by tests written from section 8. The product change follows the test. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. Pixel `mismatchPct` stays under the section 5 rule (`ubuntu-latest` with pinned Chromium is the source of truth). Gate 1, exit codes, and the section 6 schema must pass on both operating systems.
+
+### What is enforced
+
+`ENFORCED_MILESTONES` in `tools/pixel-perfect-gate/tests/acceptance/manifest.mjs` is currently `M1` only. The family comes from the section 4 tag: `[M1.6]` is `M1`, `[M2.0a]` is `M2`, `[M2b.1]` is `M2b`. Section 8 checkboxes under an enforced family are the criteria. Checked boxes (`- [x]`) are the green suite. Unchecked boxes (`- [ ]`) are the gap suite. `- [X]` is not a checkbox.
+
+Milestone 2 tests are not written yet. Their directory is `tools/pixel-perfect-gate/tests/acceptance/m2/`. Do not add `M2` or `M2b` to `ENFORCED_MILESTONES` until each of that family's section 8 criteria has a test. Milestone 2b is not part of the M1 suite.
+
+### Traceability
+
+Each criterion has a stable id (`M1-AC-01`, then the next free number). Do not renumber ids. The manifest `text` is the section 8 checkbox text verbatim. The test name is `<id>: <text>` as a string literal passed to `test(...)` or `serialTest(...)`. `node scripts/acceptance-status.mjs` fails if the manifest, the checkbox, and the test name disagree.
+
+Green tests are `*.test.mjs` under `tools/pixel-perfect-gate/tests/acceptance/` and are listed by path in `tools/pixel-perfect-gate/package.json` `scripts.test`. Gap tests are `*.pending.mjs`. `npm test` must not invoke a gap file directly.
+
+### Gaps stay visible
+
+A gap test is a real assertion of the criterion. It is expected to fail with `ERR_ASSERTION` until the product meets it. `node scripts/acceptance-status.mjs` runs the gap files. It exits 0 while every gap test fails that way, and exits 1 if a gap test is missing, skipped, todo, crashes, or starts passing. A gap test that starts passing is promoted into a green `*.test.mjs` file in the same change that checks its section 8 box. `node scripts/verify.mjs` runs this command (via the package test script) on `ubuntu-latest` and `windows-latest`, so `main` stays green and the remaining criteria cannot be skipped.
+
+`node scripts/acceptance-status.mjs --static-only` checks names and wiring without executing gap tests. The green suite itself runs inside `npm test` before that command.
+
+### Do not weaken a test
+
+The default fix is to change the product so the existing assertion passes. A PR that modifies or deletes an existing file under `tools/pixel-perfect-gate/tests/`, or that edits `scripts/acceptance-lib.mjs`, `scripts/acceptance-status.mjs`, `scripts/acceptance-status.test.mjs`, `scripts/verify.mjs`, `tools/pixel-perfect-gate/package.json`, or `.github/workflows/ci.yml`, must include a PR-body line `Acceptance-test change rationale:` followed by why the assertion or the gate changed. The explanation is the author's own sentence. A blank line, the pull request template's hint, a copy of that template, and `n/a` do not count. Adding a new test file does not require that line. `node scripts/verify-pr-ready.mjs` enforces it when `PR_BODY` is set (CI sets it from the pull request body). The template leaves the rationale line blank and keeps the hint in the HTML comment.
+
+Break-it tests are extra named tests listed on the criterion's `breakIt` array (NaN and null landmark coordinates, an empty sidecar, a missing sidecar, a landmark that is not on the page, the 4px boundary). Deleting one fails the gate. A new check in `scripts/acceptance-lib.mjs` has a mutation in `scripts/acceptance-status.test.mjs` that must fail: a missing criterion, an extra criterion, a flipped suite, a capital-X checkbox, a skipped test, a gap test that passes, and a test file `npm test` does not run.

@@ -11,6 +11,7 @@
  */
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { acceptanceEditRequiresRationale } from './acceptance-lib.mjs';
 
 const specArgIdx = process.argv.indexOf('--spec');
 const specPath = specArgIdx !== -1 ? process.argv[specArgIdx + 1] : process.env.SPEC_PATH || 'SPEC.md';
@@ -96,6 +97,27 @@ if (/^\.env\r?$/m.test(staged)) {
 const branchMatch = branch.match(/\b(SIDE-\d+)\b/i);
 if (branch.startsWith('feat/') && !branchMatch) {
   console.error(`❌ Feature branch "${branch}" must include a Linear key (e.g. feat/SIDE-11-...).`);
+  process.exit(1);
+}
+
+const baseName = (process.env.GITHUB_BASE_REF || 'main').trim() || 'main';
+const baseRef = `origin/${baseName}`;
+try {
+  execSync(`git rev-parse --verify --quiet ${baseRef}`, { stdio: 'ignore' });
+} catch {
+  execSync(`git fetch --depth=1 origin ${baseName}`, { stdio: 'inherit' });
+}
+let nameStatus = '';
+try {
+  nameStatus += execSync(`git diff --name-status ${baseRef}...HEAD`, { encoding: 'utf8' });
+} catch {
+  nameStatus += execSync(`git diff --name-status ${baseRef}`, { encoding: 'utf8' });
+}
+nameStatus += execSync('git diff --name-status HEAD', { encoding: 'utf8' });
+nameStatus += execSync('git diff --name-status --cached', { encoding: 'utf8' });
+const acceptanceEdit = acceptanceEditRequiresRationale(nameStatus, process.env.PR_BODY || '');
+if (!acceptanceEdit.ok) {
+  console.error(`❌ ${acceptanceEdit.message}`);
   process.exit(1);
 }
 

@@ -23,6 +23,18 @@ Closes SIDE-
 
 ---
 
+## Acceptance tests
+<!-- Section 13. List M*-AC-* ids this PR moves from gap to pass. Write "none" when it does not promote any.
+     Paste the gap summary from `node scripts/acceptance-status.mjs`.
+     If an existing test, the acceptance gate, package test script, verify.mjs, or ci.yml changes,
+     write why on the rationale line. Leave that line blank when nothing changed.
+     The blank line, this comment, and "n/a" do not satisfy the check. -->
+- Turned green:
+- Still gap:
+- Acceptance-test change rationale:
+
+---
+
 ## Break-It Checks (must-fail cases)
 <!-- For every new check, gate, test, or validation: show at least one input that MUST fail, and that it does.
      A check you could not make fail is not tested. Cover both directions (extra AND missing). -->
@@ -43,6 +55,7 @@ Closes SIDE-
 - [ ] `node scripts/verify.mjs` passes cleanly
 - [ ] `node scripts/verify-pr-ready.mjs` confirms `SPEC.md` & `SIDE-XX` key parity
 - [ ] `npm test` passes from the repo root
+- [ ] Acceptance-test ids turned green are listed above, and the gap summary is pasted (`node scripts/acceptance-status.mjs`)
 - [ ] Any new script/check is wired into `.github/workflows/ci.yml` and works on a detached HEAD
 - [ ] Verified on **Windows** (primary platform) and green on the CI matrix (`windows-latest` + `ubuntu-latest`)
 - [ ] No `.env`, API keys, or `.visual-eval/` artifacts committed

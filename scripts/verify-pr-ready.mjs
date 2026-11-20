@@ -4,8 +4,9 @@
  * 1. Current branch (or GITHUB_HEAD_REF on detached HEAD) is not `main`.
  * 2. Branch name on `feat/` includes a Linear `SIDE-XX` key.
  * 3. `SPEC.md` has zero `NEW-*` placeholders and enforces bidirectional parity:
- *    - Section 8 headings (`### SIDE-XX`) MUST equal the unchecked `[ ]` keys in Section 4.
- *    - Section 9 (`SIDE-XX` refs) may cite only Section 4 keys, and MUST include every unchecked `[ ]` key from Section 4.
+ *    - Section 8 headings (`### SIDE-XX` / `### RS-XX`) MUST equal the unchecked `[ ]` keys in Section 4.
+ *    - Section 9 (`SIDE-XX` / `RS-XX` refs) may cite only Section 4 keys, and MUST include every unchecked `[ ]` key from Section 4.
+ *    `RS-XX` are proposed (pre-Linear) keys; they get the same parity checks as Linear `SIDE-XX` keys.
  * 4. No untracked secrets (.env) staged.
  */
 import fs from 'fs';
@@ -43,8 +44,9 @@ if (!sec4Match) {
   process.exit(1);
 }
 const sec4 = sec4Match[1];
-const sec4Keys = new Set([...sec4.matchAll(/^- \[[ x]\] \*\*(SIDE-\d+)\*\*/gm)].map((m) => m[1]));
-const openSec4 = new Set([...sec4.matchAll(/^- \[ \] \*\*(SIDE-\d+)\*\*/gm)].map((m) => m[1]));
+const KEY = '(?:SIDE|RS)-\\d+';
+const sec4Keys = new Set([...sec4.matchAll(new RegExp(`^- \\[[ x]\\] \\*\\*(${KEY})\\*\\*`, 'gm'))].map((m) => m[1]));
+const openSec4 = new Set([...sec4.matchAll(new RegExp(`^- \\[ \\] \\*\\*(${KEY})\\*\\*`, 'gm'))].map((m) => m[1]));
 if (sec4Keys.size === 0) {
   console.error(`❌ No SIDE-XX keys found in Section 4 of ${specPath}.`);
   process.exit(1);
@@ -56,7 +58,7 @@ if (!sec8Match) {
   console.error(`❌ Could not locate Section 8 in ${specPath}.`);
   process.exit(1);
 }
-const sec8Keys = new Set([...sec8Match[1].matchAll(/^### (SIDE-\d+)\b/gm)].map((m) => m[1]));
+const sec8Keys = new Set([...sec8Match[1].matchAll(new RegExp(`^### (${KEY})\\b`, 'gm'))].map((m) => m[1]));
 const missingSec8 = [...openSec4].filter((k) => !sec8Keys.has(k));
 const extraSec8 = [...sec8Keys].filter((k) => !sec4Keys.has(k));
 const closedInSec8 = [...sec8Keys].filter((k) => sec4Keys.has(k) && !openSec4.has(k));
@@ -73,7 +75,7 @@ if (!sec9Match) {
   console.error(`❌ Could not locate Section 9 in ${specPath}.`);
   process.exit(1);
 }
-const sec9Keys = new Set([...sec9Match[1].matchAll(/\b(SIDE-\d+)\b/g)].map((m) => m[1]));
+const sec9Keys = new Set([...sec9Match[1].matchAll(new RegExp(`\\b(${KEY})\\b`, 'g'))].map((m) => m[1]));
 const missingSec9 = [...openSec4].filter((k) => !sec9Keys.has(k));
 const unknownSec9 = [...sec9Keys].filter((k) => !sec4Keys.has(k));
 if (missingSec9.length || unknownSec9.length) {

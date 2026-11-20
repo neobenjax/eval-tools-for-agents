@@ -1,8 +1,5 @@
 /**
- * Milestone 1 gap tests for the section 6 report.
- * These assertions describe the contract the product does not meet yet.
- * acceptance-status.mjs expects each test to fail with ERR_ASSERTION.
- * When a test starts passing, move it into a green *.test.mjs file and check its section 8 box.
+ * Milestone 1 acceptance tests for the section 6 report (SIDE-24).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +7,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { chromium } from 'playwright';
-import { fixturesDir, runCli, serialTest, startStaticServer, tmpOut } from '../harness.mjs';
+import { fixturesDir, runCli, serialTest, startStaticServer, tmpOut } from './harness.mjs';
 
 const REQUIRED_KEYS = [
   'schemaVersion',

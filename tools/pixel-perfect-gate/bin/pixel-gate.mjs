@@ -11,6 +11,9 @@ import { program } from 'commander';
 import { attachRuntimeListeners, runLayoutAudit } from '../src/layout-audit.mjs';
 import { readReferencePng, compareVisual, cropPng } from '../src/visual-diff.mjs';
 import { recordTelemetry } from '../src/telemetry.mjs';
+import { buildReport } from '../src/report.mjs';
+
+const startMs = Date.now();
 
 program
   .name('pixel-gate')
@@ -32,10 +35,26 @@ program
   .option('--iteration <number>', 'Current Agent Loop iteration (1-5)', '1')
   .option('--model <name>', 'Optional AI model identifier for telemetry', 'unknown')
   .option('--harness <name>', 'Optional harness identifier (antigravity|cursor|cli)', 'cli')
-  .parse();
+  .exitOverride();
 
-const opts = program.opts();
-const startMs = Date.now();
+let opts = {};
+try {
+  program.parse();
+  opts = program.opts();
+} catch (err) {
+  if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
+    process.exit(0);
+  }
+  const report = buildReport({
+    passed: false,
+    iteration: 1,
+    durationMs: Date.now() - startMs,
+    errorMessage: err?.message || String(err),
+  });
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(report.exitCode);
+}
+
 const mode = opts.mode === 'wireframe' ? 'wireframe' : 'pixel';
 
 let browser = null;
@@ -283,31 +302,34 @@ try {
   const durationMs = Date.now() - startMs;
   const passed = Boolean(gate1Result?.passed && gate2Result?.passed);
 
+  const report = buildReport({
+    passed,
+    iteration,
+    durationMs,
+    gate1Result,
+    gate2Result,
+  });
+
   const telemetryPath = recordTelemetry(opts.out, {
     url: opts.url,
     mode,
     dpr,
     iteration,
-    passed,
+    passed: report.passed,
     gate1Passed: Boolean(gate1Result?.passed),
     gate2Passed: Boolean(gate2Result?.passed),
     mismatchPct: gate2Result?.mismatchPct ?? null,
-    durationMs,
+    durationMs: report.durationMs,
+    findingIds: report.findings.map((f) => f.id),
     model: opts.model,
     harness: opts.harness,
   });
 
-  const output = {
-    passed,
-    iteration,
-    durationMs,
-    gate1: gate1Result,
-    gate2: gate2Result,
-    telemetry: telemetryPath,
-  };
+  report.telemetry = telemetryPath;
+  report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
 
-  console.log(JSON.stringify(output, null, 2));
-  process.exit(passed ? 0 : 1);
+  console.log(JSON.stringify(report, null, 2));
+  process.exit(report.exitCode);
 } catch (err) {
   if (browser) {
     try {
@@ -316,33 +338,42 @@ try {
   }
   const durationMs = Date.now() - startMs;
   const errMsg = err.message || String(err);
+  const parsedIter = Number(opts.iteration);
+  const safeIter = Number.isInteger(parsedIter) ? parsedIter : iteration;
+
+  const failureReport = buildReport({
+    passed: false,
+    iteration: safeIter,
+    durationMs,
+    errorMessage: errMsg,
+    gate1Result,
+    gate2Result,
+  });
+
   let telemetryPath = null;
   try {
-    const parsedIter = Number(opts.iteration);
     telemetryPath = recordTelemetry(opts.out, {
       url: opts.url,
       mode,
       dpr,
-      iteration: Number.isInteger(parsedIter) ? parsedIter : null,
+      iteration: safeIter,
       passed: false,
       gate1Passed: Boolean(gate1Result?.passed),
       gate2Passed: false,
       mismatchPct: null,
-      durationMs,
+      durationMs: failureReport.durationMs,
       error: errMsg,
+      findingIds: failureReport.findings.map((f) => f.id),
       model: opts.model,
       harness: opts.harness,
     });
   } catch {}
-  const failureOutput = {
-    passed: false,
-    iteration: Number.isInteger(Number(opts.iteration)) ? Number(opts.iteration) : null,
-    durationMs,
-    error: errMsg,
-    gate1: gate1Result,
-    gate2: gate2Result,
-    telemetry: telemetryPath,
-  };
-  console.log(JSON.stringify(failureOutput, null, 2));
-  process.exit(1);
+
+  failureReport.telemetry = telemetryPath;
+  if (telemetryPath) {
+    failureReport.artifacts = { ...(failureReport.artifacts || {}), telemetry: telemetryPath };
+  }
+
+  console.log(JSON.stringify(failureReport, null, 2));
+  process.exit(failureReport.exitCode);
 }

@@ -236,11 +236,25 @@ export function compareVisual({
       actualImg = conformed;
       fs.writeFileSync(actualPath, PNG.sync.write(actualImg));
     } else {
+      const errorMsg = `Dimension mismatch: Reference is ${refImg.width}x${refImg.height}, Actual is ${actualImg.width}x${actualImg.height}. Check CSS container dimensions or --dpr.`;
       return {
         passed: false,
         mode: 'pixel',
-        error: `Dimension mismatch: Reference is ${refImg.width}x${refImg.height}, Actual is ${actualImg.width}x${actualImg.height}. Check CSS container dimensions or --dpr.`,
+        mismatchPct: null,
+        regions: [],
+        regionCount: 0,
+        error: errorMsg,
         dimensions: `${actualImg.width}x${actualImg.height}`,
+        findings: [
+          {
+            id: 'gate2.dimension-mismatch',
+            gate: 'gate2',
+            severity: 'fail',
+            selector: '',
+            box: null,
+            text: errorMsg,
+          },
+        ],
         artifacts: { actual: actualPath },
       };
     }
@@ -289,6 +303,31 @@ export function compareVisual({
   const totalPixels = refImg.width * refImg.height;
   const mismatchPct = Number(((numDiffPixels / totalPixels) * 100).toFixed(3));
   const passed = mismatchPct <= maxDiff;
+  const { regions, regionCount } = numDiffPixels > 0
+    ? clusterDiffRegions(diff.data, refImg.width, refImg.height, dpr, 8)
+    : { regions: [], regionCount: 0 };
+
+  const findings = passed
+    ? []
+    : regions.length > 0
+      ? regions.map((r) => ({
+          id: r.id,
+          gate: 'gate2',
+          severity: 'fail',
+          selector: '',
+          box: r.box,
+          text: `Visual diff in ${r.box.width}x${r.box.height}px region at (${r.box.x},${r.box.y}): ${r.mismatchPct}% mismatch.`,
+        }))
+      : [
+          {
+            id: 'gate2.pixel-mismatch',
+            gate: 'gate2',
+            severity: 'fail',
+            selector: '',
+            box: null,
+            text: `Visual mismatch ${mismatchPct}% exceeds max-diff ${maxDiff}%.`,
+          },
+        ];
 
   return {
     passed,
@@ -296,11 +335,148 @@ export function compareVisual({
     mismatchPct,
     maxAllowedPct: maxDiff,
     diffPixels: numDiffPixels,
+    regions,
+    regionCount,
     dimensions: `${refImg.width}x${refImg.height}`,
+    findings,
     artifacts: {
       actual: actualPath,
       diff: diffPath,
       composite: compositePath,
     },
+  };
+}
+
+/**
+ * Cluster differing pixels into bounding-box regions in CSS pixels using an 8 CSS px gap.
+ * Returns reading-order sorted regions (top, then left), capped at 20, plus total regionCount.
+ */
+export function clusterDiffRegions(diffData, width, height, dpr = 1, gapCssPx = 8) {
+  const cssW = Math.ceil(width / dpr);
+  const cssH = Math.ceil(height / dpr);
+  const totalCells = cssW * cssH;
+  const active = new Uint8Array(totalCells);
+  const cellDiffs = new Uint16Array(totalCells);
+
+  for (let py = 0; py < height; py++) {
+    const cy = Math.floor(py / dpr);
+    const rowOffset = py * width;
+    for (let px = 0; px < width; px++) {
+      const idx = (rowOffset + px) * 4;
+      if (diffData[idx] === 255 && diffData[idx + 1] === 0 && diffData[idx + 2] === 0 && diffData[idx + 3] === 255) {
+        const cx = Math.floor(px / dpr);
+        const cIdx = cy * cssW + cx;
+        active[cIdx] = 1;
+        cellDiffs[cIdx] += 1;
+      }
+    }
+  }
+
+  // Disjoint-set union over active CSS cells
+  const parent = new Int32Array(totalCells);
+  parent.fill(-1);
+
+  const find = (i) => {
+    let root = i;
+    while (parent[root] !== root) root = parent[root];
+    let curr = i;
+    while (curr !== root) {
+      const next = parent[curr];
+      parent[curr] = root;
+      curr = next;
+    }
+    return root;
+  };
+
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  for (let i = 0; i < totalCells; i++) {
+    if (active[i]) parent[i] = i;
+  }
+
+  // Pass 1: 4-neighbor union
+  for (let cy = 0; cy < cssH; cy++) {
+    const row = cy * cssW;
+    for (let cx = 0; cx < cssW; cx++) {
+      const idx = row + cx;
+      if (!active[idx]) continue;
+      if (cx + 1 < cssW && active[idx + 1]) union(idx, idx + 1);
+      if (cy + 1 < cssH && active[idx + cssW]) union(idx, idx + cssW);
+    }
+  }
+
+  // Pass 2: gap union for boundary cells
+  for (let cy = 0; cy < cssH; cy++) {
+    const row = cy * cssW;
+    for (let cx = 0; cx < cssW; cx++) {
+      const idx = row + cx;
+      if (!active[idx]) continue;
+      const isBoundary =
+        cx === 0 || cx === cssW - 1 || cy === 0 || cy === cssH - 1 ||
+        !active[idx - 1] || !active[idx + 1] || !active[idx - cssW] || !active[idx + cssW];
+      if (!isBoundary) continue;
+
+      const maxY = Math.min(cssH - 1, cy + gapCssPx);
+      const minX = Math.max(0, cx - gapCssPx);
+      const maxX = Math.min(cssW - 1, cx + gapCssPx);
+      for (let ny = cy; ny <= maxY; ny++) {
+        const nRow = ny * cssW;
+        for (let nx = minX; nx <= maxX; nx++) {
+          if (ny === cy && nx <= cx) continue;
+          const nIdx = nRow + nx;
+          if (active[nIdx]) union(idx, nIdx);
+        }
+      }
+    }
+  }
+
+  // Aggregate bounding boxes per root
+  const boxes = new Map();
+  for (let cy = 0; cy < cssH; cy++) {
+    const row = cy * cssW;
+    for (let cx = 0; cx < cssW; cx++) {
+      const idx = row + cx;
+      if (!active[idx]) continue;
+      const root = find(idx);
+      let entry = boxes.get(root);
+      if (!entry) {
+        entry = { minX: cx, minY: cy, maxX: cx, maxY: cy, diffPixels: 0 };
+        boxes.set(root, entry);
+      } else {
+        if (cx < entry.minX) entry.minX = cx;
+        if (cy < entry.minY) entry.minY = cy;
+        if (cx > entry.maxX) entry.maxX = cx;
+        if (cy > entry.maxY) entry.maxY = cy;
+      }
+      entry.diffPixels += cellDiffs[idx];
+    }
+  }
+
+  const sorted = Array.from(boxes.values())
+    .map((b) => {
+      const boxW = b.maxX - b.minX + 1;
+      const boxH = b.maxY - b.minY + 1;
+      const areaPx = boxW * boxH * dpr * dpr;
+      const pct = Math.min(100, Number(((b.diffPixels / areaPx) * 100).toFixed(3)));
+      return {
+        box: { x: b.minX, y: b.minY, width: boxW, height: boxH },
+        mismatchPct: pct,
+      };
+    })
+    .sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x);
+
+  const allRegions = sorted.map((r, i) => ({
+    id: `gate2.region.${i + 1}`,
+    box: r.box,
+    mismatchPct: r.mismatchPct,
+  }));
+
+  return {
+    regions: allRegions.slice(0, 20),
+    regionCount: allRegions.length,
   };
 }

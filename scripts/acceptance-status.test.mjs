@@ -80,7 +80,9 @@ test('parser and manifest mutations fail closed', () => {
 
   const flipped = {
     ...manifest,
-    criteria: manifest.criteria.map((entry) => (entry.id === 'M1-AC-09' ? { ...entry, suite: 'pass' } : entry)),
+    criteria: manifest.criteria.map((entry) =>
+      entry.id === 'M1-AC-09' ? { ...entry, suite: entry.suite === 'gap' ? 'pass' : 'gap' } : entry
+    ),
   };
   assert.ok(staticAcceptanceErrors({ ...baseInput, manifest: flipped }).errors.some((error) => error.includes('M1-AC-09')));
 
@@ -90,13 +92,13 @@ test('parser and manifest mutations fail closed', () => {
   const capitalX = spec.replace(
     'Stdout for a pass, a gate failure',
     'IGNORED'
-  ).replace('- [ ] IGNORED', '- [X] IGNORED');
+  ).replace(/- \[[ x]\] IGNORED/, '- [X] IGNORED');
   const capital = extractEnforcedCriteria(capitalX, ['M1']);
   assert.ok(capital.errors.some((error) => error.includes('capital X')));
   assert.equal(capital.criteria.some((criterion) => criterion.text.startsWith('IGNORED')), false);
 
   const duplicate = spec.replace(
-    '- [ ] A fixture asserts the required keys.',
+    /- \[[ x]\] A fixture asserts the required keys\./,
     '- [ ] A fixture asserts the required keys.\n- [ ] A fixture asserts the required keys.'
   );
   assert.ok(extractEnforcedCriteria(duplicate, ['M1']).errors.some((error) => error.includes('Duplicate')));
@@ -104,8 +106,19 @@ test('parser and manifest mutations fail closed', () => {
   const unwired = packageJson.scripts.test.replace('tests/acceptance/m1-engine.acceptance.test.mjs', 'tests/acceptance/missing.acceptance.test.mjs');
   assert.ok(staticAcceptanceErrors({ ...baseInput, packageTestScript: unwired }).errors.some((error) => error.includes('does not run')));
 
-  const runsGapDirectly = `${packageJson.scripts.test} tests/acceptance/pending/m1-report.pending.mjs`;
-  assert.ok(staticAcceptanceErrors({ ...baseInput, packageTestScript: runsGapDirectly }).errors.some((error) => error.includes('must not run gap file')));
+  const tmpAccRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'acc-gap-'));
+  const tmpAccDir = path.join(tmpAccRoot, 'tests', 'acceptance');
+  fs.cpSync(baseInput.acceptanceDir, tmpAccDir, { recursive: true });
+  fs.mkdirSync(path.join(tmpAccDir, 'pending'), { recursive: true });
+  fs.writeFileSync(path.join(tmpAccDir, 'pending', 'dummy.pending.mjs'), "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('M1-AC-09: dummy', () => { assert.fail('gap'); });\n");
+  const runsGapDirectly = `${packageJson.scripts.test} tests/acceptance/pending/dummy.pending.mjs`;
+  assert.ok(staticAcceptanceErrors({
+    ...baseInput,
+    packageRoot: tmpAccRoot,
+    acceptanceDir: tmpAccDir,
+    packageTestScript: runsGapDirectly,
+  }).errors.some((error) => error.includes('must not run gap file')));
+  fs.rmSync(tmpAccRoot, { recursive: true, force: true });
 
   const noStatus = packageJson.scripts.test.replace('acceptance-status.mjs', 'not-the-status-script.mjs');
   assert.ok(staticAcceptanceErrors({ ...baseInput, packageTestScript: noStatus }).errors.some((error) => error.includes('acceptance-status.mjs')));
@@ -126,7 +139,7 @@ test('skip, todo, and assert-free acceptance tests are rejected', () => {
 });
 
 test('gap execution must be an assertion failure, never a skip or a surprise pass', () => {
-  const gap = manifest.criteria.find((entry) => entry.id === 'M1-AC-09');
+  const gap = { ...manifest.criteria.find((entry) => entry.id === 'M1-AC-09'), suite: 'gap' };
   const title = criterionTitle(gap);
   const header = `TAP version 13\n`;
   const footer = `
@@ -153,7 +166,7 @@ test('gap execution must be an assertion failure, never a skip or a surprise pas
   const cancelled = failing.replace('# cancelled 0', '# cancelled 1');
   assert.ok(gapExecutionErrors([gap], cancelled).errors.some((error) => error.includes('cancelled')));
 
-  const hashed = manifest.criteria.find((entry) => entry.id === 'M1-AC-15');
+  const hashed = { ...manifest.criteria.find((entry) => entry.id === 'M1-AC-15'), suite: 'gap' };
   const escaped = criterionTitle(hashed).replaceAll('#', '\\#');
   const hashedTap = `TAP version 13\nnot ok 1 - ${escaped}\n  ---\n  failureType: 'testCodeFailure'\n  code: 'ERR_ASSERTION'\n  ...\n1..1\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n`;
   assert.deepEqual(gapExecutionErrors([hashed], hashedTap).errors, []);

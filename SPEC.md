@@ -330,13 +330,13 @@ PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, c
 
 ### SIDE-24 report schema (`M1.6`)
 
-- [ ] Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.
-- [ ] Each Gate 1 element finding includes `selector`, `box`, and short `text`.
-- [ ] Gate 2 includes `mismatchPct` and clustered `regions` with boxes, capped at 20, plus `regionCount`.
-- [ ] Finding `id` values for the broken-layout fixture are identical across two runs.
-- [ ] Exit `0` on pass and exit `1` on fail, matching `exitCode`.
-- [ ] A fixture asserts the required keys.
-- [ ] `.visual-eval/telemetry.jsonl` gains `schemaVersion` and the finding ids for that run, and keeps the PR #2 fields (`iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, `harness`).
+- [x] Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.
+- [x] Each Gate 1 element finding includes `selector`, `box`, and short `text`.
+- [x] Gate 2 includes `mismatchPct` and clustered `regions` with boxes, capped at 20, plus `regionCount`.
+- [x] Finding `id` values for the broken-layout fixture are identical across two runs.
+- [x] Exit `0` on pass and exit `1` on fail, matching `exitCode`.
+- [x] A fixture asserts the required keys.
+- [x] `.visual-eval/telemetry.jsonl` gains `schemaVersion` and the finding ids for that run, and keeps the PR #2 fields (`iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, `harness`).
 
 ### SIDE-25 per-project config and global CLI (`M2.0a`)
 

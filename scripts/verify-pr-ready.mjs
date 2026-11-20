@@ -4,7 +4,8 @@
  * 1. Current branch (or GITHUB_HEAD_REF on detached HEAD) is not `main`.
  * 2. Branch name on `feat/` includes a Linear `SIDE-XX` key.
  * 3. `SPEC.md` has zero `NEW-*` placeholders and enforces bidirectional parity:
- *    - Section 8 headings (`### SIDE-XX` / `### RS-XX`) MUST equal the unchecked `[ ]` keys in Section 4.
+ *    - Section 8 headings (`### SIDE-XX` / `### RS-XX`) MUST equal the unchecked `[ ]` keys in Section 4,
+ *      plus fully-checked (`- [x]`) headings for keys whose milestone family is in `ENFORCED_MILESTONES`.
  *    - Section 9 (`SIDE-XX` / `RS-XX` refs) may cite only Section 4 keys, and MUST include every unchecked `[ ]` key from Section 4.
  *    `RS-XX` are proposed (pre-Linear) keys; they get the same parity checks as Linear `SIDE-XX` keys.
  * 4. No untracked secrets (.env) staged.
@@ -47,33 +48,66 @@ if (!sec4Match) {
 }
 const sec4 = sec4Match[1];
 const KEY = '(?:SIDE|RS)-\\d+';
+const capitalXSec4 = [...sec4.matchAll(new RegExp(`^- \\[X\\] \\*\\*(${KEY})\\*\\*`, 'gm'))].map((m) => m[1]);
+if (capitalXSec4.length > 0) {
+  console.error(`❌ Section 4 uses capital [X] for: ${capitalXSec4.join(', ')}. Use "- [x]" or "- [ ]".`);
+  process.exit(1);
+}
 const sec4Keys = new Set();
 const openSec4 = new Set();
 const sec4Families = new Map();
+const dupSec4 = [];
 for (const m of sec4.matchAll(new RegExp(`^- \\[([ x])\\] \\*\\*(${KEY})\\*\\*(.*)$`, 'gm'))) {
+  if (sec4Keys.has(m[2])) dupSec4.push(m[2]);
   sec4Keys.add(m[2]);
   if (m[1] === ' ') openSec4.add(m[2]);
   const family = milestoneFamily(m[3]);
   if (family) sec4Families.set(m[2], family);
+}
+if (dupSec4.length > 0) {
+  console.error(`❌ Duplicate keys in Section 4 of ${specPath}: ${[...new Set(dupSec4)].join(', ')}.`);
+  process.exit(1);
 }
 if (sec4Keys.size === 0) {
   console.error(`❌ No SIDE-XX keys found in Section 4 of ${specPath}.`);
   process.exit(1);
 }
 
-// 3. Section 8 headings must equal unchecked Section 4 keys (plus enforced-milestone keys whose criteria stay in §8)
+// 3. Section 8 headings must equal unchecked Section 4 keys (plus fully-checked enforced-milestone keys)
 const sec8Match = spec.match(/## 8\.[^\n]*\n([\s\S]*?)\n## 9\./);
 if (!sec8Match) {
   console.error(`❌ Could not locate Section 8 in ${specPath}.`);
   process.exit(1);
 }
 const enforcedFamilies = new Set(ENFORCED_MILESTONES);
-const sec8Keys = new Set([...sec8Match[1].matchAll(new RegExp(`^### (${KEY})\\b`, 'gm'))].map((m) => m[1]));
+const sec8Keys = new Set();
+const sec8Checkboxes = new Map();
+let currentSec8Key = null;
+for (const line of sec8Match[1].split('\n')) {
+  const heading = line.match(new RegExp(`^### (${KEY})\\b`));
+  if (heading) {
+    currentSec8Key = heading[1];
+    sec8Keys.add(currentSec8Key);
+    if (!sec8Checkboxes.has(currentSec8Key)) sec8Checkboxes.set(currentSec8Key, []);
+    continue;
+  }
+  if (currentSec8Key && /^- \[[ xX]\] /.test(line)) {
+    sec8Checkboxes.get(currentSec8Key).push(line[3]);
+  }
+}
 const missingSec8 = [...openSec4].filter((k) => !sec8Keys.has(k));
 const extraSec8 = [...sec8Keys].filter((k) => !sec4Keys.has(k));
+const closedAllowedEnforced = (k) => {
+  if (!enforcedFamilies.has(sec4Families.get(k))) return false;
+  const boxes = sec8Checkboxes.get(k) || [];
+  return boxes.length > 0 && boxes.every((mark) => mark === 'x');
+};
 const closedInSec8 = [...sec8Keys].filter(
-  (k) => sec4Keys.has(k) && !openSec4.has(k) && !enforcedFamilies.has(sec4Families.get(k))
+  (k) => sec4Keys.has(k) && !openSec4.has(k) && !closedAllowedEnforced(k)
 );
+const closedEnforcedCount = [...sec8Keys].filter(
+  (k) => sec4Keys.has(k) && !openSec4.has(k) && closedAllowedEnforced(k)
+).length;
 if (missingSec8.length || extraSec8.length || closedInSec8.length) {
   console.error(
     `❌ Section 8 headings must equal open Section 4 keys. Missing: ${missingSec8.join(', ') || 'none'}. Unknown: ${extraSec8.join(', ') || 'none'}. Closed-but-in-§8: ${closedInSec8.join(', ') || 'none'}.`
@@ -133,5 +167,5 @@ if (!acceptanceEdit.ok) {
 }
 
 console.log(
-  `✅ PR ready on branch "${branch}" (Section 4: ${sec4Keys.size} total / ${openSec4.size} open; Section 8: ${sec8Keys.size} headings = open; Section 9: ${sec9Keys.size} refs covering all open).`
+  `✅ PR ready on branch "${branch}" (Section 4: ${sec4Keys.size} total / ${openSec4.size} open; Section 8: ${sec8Keys.size} headings (${openSec4.size} open, ${closedEnforcedCount} closed enforced); Section 9: ${sec9Keys.size} refs covering all open).`
 );

@@ -34,5 +34,6 @@ node scripts/sync-linear.mjs --move SIDE-XX "In Progress"
 
 - **Never commit `.env`** or print `LINEAR_API_KEY` to stdout/logs.
 - **Never commit directly to `main`**; use `feat/SIDE-XX-<slug>` branches.
-- **1:1 Linear Key Parity:** Use exact Linear native keys (`SIDE-XX`) everywhere (`SPEC.md`, branch names, commits, PR `Closes SIDE-XX`). Rows not yet in Linear use proposed `RS-XX` keys (`SPEC.md` section 12) until the owner assigns `SIDE-XX`.
+- **1:1 Linear Key Parity:** Use exact Linear native keys (`SIDE-XX`) everywhere (`SPEC.md`, branch names, commits, PR `Closes SIDE-XX`). Any future rows not yet in Linear follow the `RS-XX` rule in `AGENTS.md`.
+- **PR Body Key Hygiene:** `.github/workflows/linear-sync.yml` moves **every** `\bSIDE-\d+\b` token in a PR body. Name only the key(s) whose Linear stage should change; refer to other issues by milestone tag (e.g., `M2b.1–M2b.9`) and avoid `P-SIDE-6` in PR descriptions.
 - **Deterministic Agent Looping:** Eval tools return structured JSON (`passed`, `artifacts`, `telemetry`) and enforce a **5-iteration hard cap** on autonomous repair loops.

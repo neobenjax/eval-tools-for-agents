@@ -1,3 +1,10 @@
+/**
+ * Green suite for the milestone 1 engine criteria.
+ * These asserts read the current stdout (`json.gate1`, `json.gate2`, `error` as a string).
+ * Section 6 uses `gates.*`, `error: null` on a finished run, and a skipped-gate object.
+ * When a gap test is promoted, update those paths in the same commit and keep the behavioral asserts
+ * (exit code, landmark id, mismatchPct, dimension text).
+ */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -49,6 +56,43 @@ serialTest('M1-AC-01: Wireframe mode fails when a landmark box (`header`, `nav`,
   assert.equal(run.json.gate2.passed, false);
   assert.equal(run.json.gate2.mode, 'wireframe');
   assert.ok(run.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.main'));
+});
+
+function sidecarWithMainDelta(axis, delta) {
+  const landmarks = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'wireframe-base-1x.landmarks.json'), 'utf8'));
+  const main = landmarks.find((landmark) => landmark.selector === 'main');
+  main[axis] += delta;
+  const file = path.join(tmpOut, `ac01-main-${axis}-${delta}.landmarks.json`);
+  fs.writeFileSync(file, JSON.stringify(landmarks));
+  return file;
+}
+
+async function mainDeltaRun(axis) {
+  return runCli([
+    '--url', `${baseUrl}/wireframe-base.html`,
+    '--ref', path.join(fixturesDir, 'wireframe-base-1x.png'),
+    '--ref-landmarks', sidecarWithMainDelta(axis, 5),
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, `ac01-main-${axis}-5`),
+  ]);
+}
+
+serialTest('M1-AC-01 break-it: a sidecar whose only delta is width 5 CSS px fails', async () => {
+  const run = await mainDeltaRun('width');
+  assert.equal(run.code, 1);
+  assert.equal(run.json.passed, false);
+  const finding = run.json.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
+  assert.ok(finding);
+  assert.ok(finding.text.includes('dx=0, dy=0, dw=5, dh=0'), finding.text);
+});
+
+serialTest('M1-AC-01 break-it: a sidecar whose only delta is height 5 CSS px fails', async () => {
+  const run = await mainDeltaRun('height');
+  assert.equal(run.code, 1);
+  assert.equal(run.json.passed, false);
+  const finding = run.json.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
+  assert.ok(finding);
+  assert.ok(finding.text.includes('dx=0, dy=0, dw=0, dh=5'), finding.text);
 });
 
 serialTest('M1-AC-01 break-it: shift of exactly 4 CSS px stays within tolerance', async () => {

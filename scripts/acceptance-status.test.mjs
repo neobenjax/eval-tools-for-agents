@@ -8,6 +8,9 @@ import { pathToFileURL } from 'node:url';
 import {
   acceptanceEditRequiresRationale,
   criterionTitle,
+  defaultPullRequestTemplate,
+  isAcceptedRationale,
+  KNOWN_RATIONALE_PLACEHOLDERS,
   extractEnforcedCriteria,
   gapExecutionErrors,
   indexAcceptanceSources,
@@ -170,11 +173,19 @@ test('changing an existing acceptance file requires a rationale line; additions 
 
   const crlf = 'M\tscripts\\verify.mjs\r\n';
   assert.equal(acceptanceEditRequiresRationale(crlf, '').ok, false);
-  assert.equal(
-    acceptanceEditRequiresRationale(modified, 'Acceptance-test change rationale: the assertion changed because the criterion text changed.').ok,
-    true
-  );
+  const explained = 'Acceptance-test change rationale: the assertion changed because the criterion text changed.';
+  assert.equal(acceptanceEditRequiresRationale(modified, explained).ok, true);
   assert.equal(acceptanceEditRequiresRationale(modified, 'Acceptance-test change rationale:').ok, false);
+  assert.equal(acceptanceEditRequiresRationale(modified, 'Acceptance-test change rationale: n/a').ok, false);
+  assert.equal(acceptanceEditRequiresRationale(modified, 'Acceptance-test change rationale: none').ok, false);
+
+  const template = defaultPullRequestTemplate();
+  assert.match(template, /Acceptance-test change rationale:\s*$/m);
+  assert.equal(acceptanceEditRequiresRationale(modified, template).ok, false);
+  assert.equal(isAcceptedRationale(KNOWN_RATIONALE_PLACEHOLDERS[0], template), false);
+  const oldHint = `Acceptance-test change rationale: ${KNOWN_RATIONALE_PLACEHOLDERS[0]}`;
+  assert.equal(acceptanceEditRequiresRationale(modified, oldHint).ok, false);
+  assert.equal(acceptanceEditRequiresRationale(modified, `${template}\n${explained}`).ok, true);
 });
 
 test('status command exits 0 when gap tests fail their assertions and 1 when a gap test passes', () => {

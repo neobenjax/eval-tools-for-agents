@@ -312,10 +312,65 @@ export function isWatchedAcceptancePath(file) {
   return normalized.startsWith('tools/pixel-perfect-gate/tests/') || WATCHED_EXACT.has(normalized);
 }
 
+const RATIONALE_LABEL = 'Acceptance-test change rationale:';
+
+/** Text that used to sit after the label in the PR template. It is not an explanation. */
+export const KNOWN_RATIONALE_PLACEHOLDERS = [
+  '(required only when an existing acceptance test or the gate changes; say why the assertion changed)',
+];
+
+const RATIONALE_TOKENS = new Set([
+  'n/a',
+  'na',
+  'n.a',
+  'n.a.',
+  'none',
+  'tbd',
+  'todo',
+  'placeholder',
+  'unchanged',
+  'noop',
+]);
+
+export function rationaleTexts(body) {
+  const texts = [];
+  for (const line of normalizeNewlines(body).split('\n')) {
+    const at = line.indexOf(RATIONALE_LABEL);
+    if (at === -1) continue;
+    texts.push(line.slice(at + RATIONALE_LABEL.length).trim());
+  }
+  return texts;
+}
+
+function normalizeRationale(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * A rationale explains the change in the PR author's words.
+ * The blank template line, the old template hint, a copy of the current template, and tokens such as `n/a` do not.
+ */
+export function isAcceptedRationale(text, templateBody = '') {
+  const trimmed = String(text || '').trim();
+  if (!/\S\s+\S/.test(trimmed)) return false;
+  const normalized = normalizeRationale(trimmed);
+  const token = normalized.replace(/\.$/, '');
+  if (RATIONALE_TOKENS.has(token)) return false;
+  const banned = new Set(
+    [...KNOWN_RATIONALE_PLACEHOLDERS, ...rationaleTexts(templateBody)].map(normalizeRationale).filter(Boolean)
+  );
+  return !banned.has(normalized);
+}
+
+export function defaultPullRequestTemplate() {
+  const templatePath = path.join(import.meta.dirname, '..', '.github', 'PULL_REQUEST_TEMPLATE.md');
+  return fs.readFileSync(templatePath, 'utf8');
+}
+
 /**
  * @returns {{ok: boolean, changed: string[], message: string}}
  */
-export function acceptanceEditRequiresRationale(nameStatus, prBody) {
+export function acceptanceEditRequiresRationale(nameStatus, prBody, templateBody = defaultPullRequestTemplate()) {
   const changed = [];
   for (const line of normalizeNewlines(nameStatus).split('\n')) {
     if (!line.trim()) continue;
@@ -329,15 +384,15 @@ export function acceptanceEditRequiresRationale(nameStatus, prBody) {
   if (changed.length === 0) {
     return { ok: true, changed, message: '' };
   }
-  const body = String(prBody || '');
-  if (/Acceptance-test change rationale:\s*\S/.test(body)) {
+  const accepted = rationaleTexts(prBody).some((text) => isAcceptedRationale(text, templateBody));
+  if (accepted) {
     return { ok: true, changed, message: '' };
   }
   return {
     ok: false,
     changed,
     message:
-      'Existing acceptance tests or the acceptance gate changed. The PR body must include a line starting with "Acceptance-test change rationale:" explaining why. Do not weaken a test to make it pass.\n' +
+      'Existing acceptance tests or the acceptance gate changed. The PR body must include a line starting with "Acceptance-test change rationale:" followed by why the assertion or the gate changed. The blank template line, the template hint, and "n/a" do not count. Do not weaken a test to make it pass.\n' +
       changed.map((line) => `  ${line}`).join('\n'),
   };
 }

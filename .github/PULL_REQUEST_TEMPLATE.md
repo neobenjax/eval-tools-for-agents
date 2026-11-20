@@ -26,10 +26,12 @@ Closes SIDE-
 ## Acceptance tests
 <!-- Section 13. List M*-AC-* ids this PR moves from gap to pass. Write "none" when it does not promote any.
      Paste the gap summary from `node scripts/acceptance-status.mjs`.
-     If an existing test, the acceptance gate, package test script, verify.mjs, or ci.yml changes, add the rationale line. -->
+     If an existing test, the acceptance gate, package test script, verify.mjs, or ci.yml changes,
+     write why on the rationale line. Leave that line blank when nothing changed.
+     The blank line, this comment, and "n/a" do not satisfy the check. -->
 - Turned green:
 - Still gap:
-- Acceptance-test change rationale: (required only when an existing acceptance test or the gate changes; say why the assertion changed)
+- Acceptance-test change rationale:
 
 ---
 

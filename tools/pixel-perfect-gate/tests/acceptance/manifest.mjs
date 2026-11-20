@@ -18,6 +18,9 @@ export const criteria = [
     text: 'Wireframe mode fails when a landmark box (`header`, `nav`, `main`, `footer`, or a selector listed in config) moves more than `4` CSS pixels on `x` or `y`, or changes width or height by more than `4` CSS pixels.',
     breakIt: [
       'M1-AC-01 break-it: shift of exactly 4 CSS px stays within tolerance',
+      'M1-AC-01 break-it: a sidecar whose only delta is width 5 CSS px fails',
+      'M1-AC-01 break-it: a sidecar whose only delta is height 5 CSS px fails',
+      'M1-AC-01 break-it: width or height of 5 CSS px fails and 4 CSS px stays within tolerance',
       'M1-AC-01 break-it: null coordinate in the landmarks sidecar fails closed',
       'M1-AC-01 break-it: NaN or null landmark coordinate fails closed',
       'M1-AC-01 break-it: empty landmarks sidecar fails closed',

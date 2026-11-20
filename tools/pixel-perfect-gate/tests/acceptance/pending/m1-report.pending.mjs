@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { chromium } from 'playwright';
 import { fixturesDir, runCli, serialTest, startStaticServer, tmpOut } from '../harness.mjs';
@@ -95,14 +96,23 @@ async function missingRefRun() {
   ]);
 }
 
+async function closedLocalPort() {
+  const probe = net.createServer();
+  await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
+  const { port } = probe.address();
+  await new Promise((resolve) => probe.close(resolve));
+  return port;
+}
+
 async function launchErrorRun() {
+  const port = await closedLocalPort();
   return runOnce('launch-error', [
-    '--url', 'http://127.0.0.1:54321/',
+    '--url', `http://127.0.0.1:${port}/`,
     '--out', path.join(tmpOut, 'gap-launch-error'),
   ]);
 }
 
-function assertSection6(run, { passed }) {
+function assertEnvelope(run, { passed }) {
   assert.ok(run.json && typeof run.json === 'object', 'stdout must be one JSON object');
   for (const key of REQUIRED_KEYS) {
     assert.equal(Object.prototype.hasOwnProperty.call(run.json, key), true, `missing ${key}`);
@@ -119,26 +129,38 @@ function assertSection6(run, { passed }) {
     assert.equal(typeof run.json.gates?.[gate], 'object', gate);
     assert.notEqual(run.json.gates[gate], null, gate);
   }
-  if (passed) {
-    assert.equal(run.json.error, null);
-  } else {
-    assert.equal(typeof run.json.error, 'object');
-    assert.notEqual(run.json.error, null);
-    assert.equal(typeof run.json.error.message, 'string');
-    assert.ok(run.json.error.message.length > 0);
-  }
+}
+
+/** A finished run: pass, gate failure, or pixel mismatch. Section 6 sets `error` to null. */
+function assertFinishedRun(run, { passed }) {
+  assertEnvelope(run, { passed });
+  assert.equal(run.json.error, null);
+}
+
+/** A run that could not finish: missing reference or launch error. Section 6 sets `error.message`. */
+function assertUnfinishedRun(run) {
+  assertEnvelope(run, { passed: false });
+  assert.equal(typeof run.json.error, 'object');
+  assert.notEqual(run.json.error, null);
+  assert.equal(typeof run.json.error.message, 'string');
+  assert.ok(run.json.error.message.length > 0);
 }
 
 serialTest('M1-AC-09: Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.', async () => {
-  const cases = [
+  const finished = [
     ['pass', await passRun(), true],
     ['gate failure', await gateFailureRun(), false],
-    ['missing reference', await missingRefRun(), false],
-    ['launch error', await launchErrorRun(), false],
   ];
-  for (const [label, run, passed] of cases) {
+  for (const [label, run, passed] of finished) {
     assert.equal(run.json?.schemaVersion, 1, label);
-    assertSection6(run, { passed });
+    assertFinishedRun(run, { passed });
+  }
+  for (const [label, run] of [
+    ['missing reference', await missingRefRun()],
+    ['launch error', await launchErrorRun()],
+  ]) {
+    assert.equal(run.json?.schemaVersion, 1, label);
+    assertUnfinishedRun(run);
   }
 });
 
@@ -159,7 +181,7 @@ serialTest('M1-AC-10: Each Gate 1 element finding includes `selector`, `box`, an
       assert.equal(Number.isInteger(finding.box[axis]), true, axis);
     }
     assert.equal(typeof finding.text, 'string');
-    assert.ok(finding.text.length > 0 && finding.text.length <= 240);
+    assert.ok(finding.text.length > 0);
   }
 });
 
@@ -232,8 +254,8 @@ serialTest('M1-AC-13: Exit `0` on pass and exit `1` on fail, matching `exitCode`
 
 serialTest('M1-AC-14: A fixture asserts the required keys.', async () => {
   const cases = [
-    ['pass', await passRun(), true],
-    ['gate 1 failure', await gateFailureRun(), false],
+    ['pass', await passRun(), 'finished', true],
+    ['gate 1 failure', await gateFailureRun(), 'finished', false],
     ['gate 2 mismatch', await (async () => {
       const env = await fixtureEnv();
       return runOnce('gate2-mismatch', [
@@ -241,15 +263,16 @@ serialTest('M1-AC-14: A fixture asserts the required keys.', async () => {
         '--ref', env.refPath,
         '--out', path.join(tmpOut, 'gap-gate2'),
       ]);
-    })(), false],
-    ['missing file', await missingRefRun(), false],
+    })(), 'finished', false],
+    ['missing file', await missingRefRun(), 'unfinished', false],
   ];
-  for (const [label, run, passed] of cases) {
+  for (const [label, run, kind, passed] of cases) {
     assert.ok(run.json, label);
     for (const key of REQUIRED_KEYS) {
       assert.equal(Object.prototype.hasOwnProperty.call(run.json, key), true, `${label} missing ${key}`);
     }
-    assertSection6(run, { passed });
+    if (kind === 'finished') assertFinishedRun(run, { passed });
+    else assertUnfinishedRun(run);
   }
 });
 

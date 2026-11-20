@@ -237,7 +237,7 @@ Each finding:
 - `severity`: `fail` or `info`. Only `fail` can set `passed` to `false`.
 - `selector`: CSS selector or `""` when the finding is not an element (dimension mismatch, config error).
 - `box`: `{ "x", "y", "width", "height" }` in CSS pixels, integers, viewport-relative, or `null` when no box exists.
-- `text`: one short sentence.
+- `text`: one short sentence. v1 does not set a character cap.
 
 Gate 1 findings that name an element (overflow, clip, overlap, broken image, occluded control) include a `box`. Console and network findings use `selector: ""`, `box: null`, and put the message or URL in `text`.
 
@@ -251,6 +251,10 @@ Gate 1 findings that name an element (overflow, clip, overlap, broken image, occ
 - Cap the array at 20 regions. Also set `regionCount` to the full count so a cap does not hide a page-wide miss.
 
 Wireframe findings use landmark ids (`gate2.landmark.main`) and the same `box` shape. They do not invent `mismatchPct`.
+
+### Telemetry line
+
+Each line of `.visual-eval/telemetry.jsonl` is one JSON object. It keeps the PR #2 fields `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`. It also has `schemaVersion` (`1`) and `findingIds`: the `findings[].id` values for that run, in the same order. A run with no findings writes `[]`.
 
 ### Exit codes
 
@@ -760,6 +764,6 @@ A gap test is a real assertion of the criterion. It is expected to fail with `ER
 
 ### Do not weaken a test
 
-The default fix is to change the product so the existing assertion passes. A PR that modifies or deletes an existing file under `tools/pixel-perfect-gate/tests/`, or that edits `scripts/acceptance-lib.mjs`, `scripts/acceptance-status.mjs`, `scripts/acceptance-status.test.mjs`, `scripts/verify.mjs`, `tools/pixel-perfect-gate/package.json`, or `.github/workflows/ci.yml`, must include a PR-body line `Acceptance-test change rationale:` followed by why the assertion or the gate changed. Adding a new test file does not require that line. `node scripts/verify-pr-ready.mjs` enforces it when `PR_BODY` is set (CI sets it from the pull request body).
+The default fix is to change the product so the existing assertion passes. A PR that modifies or deletes an existing file under `tools/pixel-perfect-gate/tests/`, or that edits `scripts/acceptance-lib.mjs`, `scripts/acceptance-status.mjs`, `scripts/acceptance-status.test.mjs`, `scripts/verify.mjs`, `tools/pixel-perfect-gate/package.json`, or `.github/workflows/ci.yml`, must include a PR-body line `Acceptance-test change rationale:` followed by why the assertion or the gate changed. The explanation is the author's own sentence. A blank line, the pull request template's hint, a copy of that template, and `n/a` do not count. Adding a new test file does not require that line. `node scripts/verify-pr-ready.mjs` enforces it when `PR_BODY` is set (CI sets it from the pull request body). The template leaves the rationale line blank and keeps the hint in the HTML comment.
 
 Break-it tests are extra named tests listed on the criterion's `breakIt` array (NaN and null landmark coordinates, an empty sidecar, a missing sidecar, a landmark that is not on the page, the 4px boundary). Deleting one fails the gate. A new check in `scripts/acceptance-lib.mjs` has a mutation in `scripts/acceptance-status.test.mjs` that must fail: a missing criterion, an extra criterion, a flipped suite, a capital-X checkbox, a skipped test, a gap test that passes, and a test file `npm test` does not run.

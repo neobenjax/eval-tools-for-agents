@@ -11,7 +11,8 @@
  */
 import fs from 'fs';
 import { execSync } from 'child_process';
-import { acceptanceEditRequiresRationale } from './acceptance-lib.mjs';
+import { acceptanceEditRequiresRationale, milestoneFamily } from './acceptance-lib.mjs';
+import { ENFORCED_MILESTONES } from '../tools/pixel-perfect-gate/tests/acceptance/manifest.mjs';
 
 const specArgIdx = process.argv.indexOf('--spec');
 const specPath = specArgIdx !== -1 ? process.argv[specArgIdx + 1] : process.env.SPEC_PATH || 'SPEC.md';
@@ -46,23 +47,33 @@ if (!sec4Match) {
 }
 const sec4 = sec4Match[1];
 const KEY = '(?:SIDE|RS)-\\d+';
-const sec4Keys = new Set([...sec4.matchAll(new RegExp(`^- \\[[ x]\\] \\*\\*(${KEY})\\*\\*`, 'gm'))].map((m) => m[1]));
-const openSec4 = new Set([...sec4.matchAll(new RegExp(`^- \\[ \\] \\*\\*(${KEY})\\*\\*`, 'gm'))].map((m) => m[1]));
+const sec4Keys = new Set();
+const openSec4 = new Set();
+const sec4Families = new Map();
+for (const m of sec4.matchAll(new RegExp(`^- \\[([ x])\\] \\*\\*(${KEY})\\*\\*(.*)$`, 'gm'))) {
+  sec4Keys.add(m[2]);
+  if (m[1] === ' ') openSec4.add(m[2]);
+  const family = milestoneFamily(m[3]);
+  if (family) sec4Families.set(m[2], family);
+}
 if (sec4Keys.size === 0) {
   console.error(`❌ No SIDE-XX keys found in Section 4 of ${specPath}.`);
   process.exit(1);
 }
 
-// 3. Section 8 headings must equal unchecked Section 4 keys
+// 3. Section 8 headings must equal unchecked Section 4 keys (plus enforced-milestone keys whose criteria stay in §8)
 const sec8Match = spec.match(/## 8\.[^\n]*\n([\s\S]*?)\n## 9\./);
 if (!sec8Match) {
   console.error(`❌ Could not locate Section 8 in ${specPath}.`);
   process.exit(1);
 }
+const enforcedFamilies = new Set(ENFORCED_MILESTONES);
 const sec8Keys = new Set([...sec8Match[1].matchAll(new RegExp(`^### (${KEY})\\b`, 'gm'))].map((m) => m[1]));
 const missingSec8 = [...openSec4].filter((k) => !sec8Keys.has(k));
 const extraSec8 = [...sec8Keys].filter((k) => !sec4Keys.has(k));
-const closedInSec8 = [...sec8Keys].filter((k) => sec4Keys.has(k) && !openSec4.has(k));
+const closedInSec8 = [...sec8Keys].filter(
+  (k) => sec4Keys.has(k) && !openSec4.has(k) && !enforcedFamilies.has(sec4Families.get(k))
+);
 if (missingSec8.length || extraSec8.length || closedInSec8.length) {
   console.error(
     `❌ Section 8 headings must equal open Section 4 keys. Missing: ${missingSec8.join(', ') || 'none'}. Unknown: ${extraSec8.join(', ') || 'none'}. Closed-but-in-§8: ${closedInSec8.join(', ') || 'none'}.`

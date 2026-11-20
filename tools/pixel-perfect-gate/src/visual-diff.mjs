@@ -74,18 +74,131 @@ export function readReferencePng(refPath) {
   return PNG.sync.read(fs.readFileSync(refPath));
 }
 
-export function compareVisual({ refImg, actualPath, outDir, threshold, maxDiff, mode, maskBoxes = [], dpr = 1 }) {
+function slugifySelector(selector) {
+  return String(selector || 'unknown')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'unknown';
+}
+
+function axisDelta(actual, expected) {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected)) return Infinity;
+  return Math.abs(actual - expected);
+}
+
+export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmarks = null, tolerance = 4, hasSidecar = false) {
+  const findings = [];
+
+  if (hasSidecar && (!Array.isArray(expectedLandmarks) || expectedLandmarks.length === 0)) {
+    findings.push({
+      id: 'gate2.landmark.invalid-sidecar',
+      gate: 'gate2',
+      severity: 'fail',
+      selector: '',
+      box: null,
+      text: 'Expected landmarks sidecar is present but does not contain a non-empty array of landmarks.',
+    });
+    return { passed: false, findings, actualLandmarks };
+  }
+
+  if (!Array.isArray(actualLandmarks) || actualLandmarks.length === 0) {
+    findings.push({
+      id: 'gate2.landmark.missing-page-landmarks',
+      gate: 'gate2',
+      severity: 'fail',
+      selector: '',
+      box: null,
+      text: 'No visible landmarks found on page (blank or unsemantic page).',
+    });
+    return { passed: false, findings, actualLandmarks: [] };
+  }
+
+  if (Array.isArray(expectedLandmarks) && expectedLandmarks.length > 0) {
+    const actualByKey = new Map();
+    for (const lm of actualLandmarks) {
+      const key = `${lm.selector}::${lm.index ?? 0}`;
+      actualByKey.set(key, lm);
+    }
+
+    for (const exp of expectedLandmarks) {
+      const idx = exp.index ?? 0;
+      const key = `${exp.selector}::${idx}`;
+      const act = actualByKey.get(key);
+      const slug = slugifySelector(exp.selector);
+      const suffix = idx > 0 ? `.${idx + 1}` : '';
+      const id = `gate2.landmark.${slug}${suffix}`;
+
+      if (!act) {
+        findings.push({
+          id,
+          gate: 'gate2',
+          severity: 'fail',
+          selector: exp.selector,
+          box: null,
+          text: `Expected landmark "${exp.selector}" (index ${idx}) is missing from the page.`,
+        });
+        continue;
+      }
+
+      const dx = axisDelta(act.x, exp.x);
+      const dy = axisDelta(act.y, exp.y);
+      const dw = axisDelta(act.width, exp.width);
+      const dh = axisDelta(act.height, exp.height);
+      const maxDelta = Math.max(dx, dy, dw, dh);
+
+      if (maxDelta > tolerance) {
+        findings.push({
+          id,
+          gate: 'gate2',
+          severity: 'fail',
+          selector: exp.selector,
+          box: { x: act.x, y: act.y, width: act.width, height: act.height },
+          text: `Landmark "${exp.selector}" shifted/resized beyond ${tolerance}px tolerance (dx=${dx}, dy=${dy}, dw=${dw}, dh=${dh}).`,
+        });
+      }
+    }
+  }
+
+  return {
+    passed: findings.length === 0,
+    findings,
+    actualLandmarks,
+  };
+}
+
+export function compareVisual({
+  refImg,
+  actualPath,
+  outDir,
+  threshold,
+  maxDiff,
+  mode,
+  maskBoxes = [],
+  dpr = 1,
+  fullPage = false,
+  wireframe = null,
+}) {
   let actualImg = PNG.sync.read(fs.readFileSync(actualPath));
   const compositePath = path.join(outDir, 'composite-diff.png');
 
   if (mode === 'wireframe') {
     buildCompositePng([refImg, actualImg], compositePath);
+    const lmResult = compareWireframeLandmarks(
+      wireframe?.actualLandmarks ?? [],
+      wireframe?.expectedLandmarks ?? null,
+      wireframe?.tolerance ?? 4,
+      wireframe?.hasSidecar ?? false
+    );
     return {
-      passed: true,
+      passed: lmResult.passed,
       mode: 'wireframe',
       mismatchPct: null,
       dimensions: `${actualImg.width}x${actualImg.height}`,
-      note: 'Wireframe mode: pixelmatch skipped; inspect composite-diff.png (Reference | Actual) for structural fidelity.',
+      landmarks: lmResult.actualLandmarks,
+      findings: lmResult.findings,
+      note: lmResult.passed
+        ? 'Wireframe mode: landmark boxes within <=4px tolerance; inspect composite-diff.png (Reference | Actual).'
+        : `Wireframe mode failed: ${lmResult.findings.map((f) => f.text).join(' ')}`,
       artifacts: {
         actual: actualPath,
         composite: compositePath,
@@ -94,13 +207,13 @@ export function compareVisual({ refImg, actualPath, outDir, threshold, maxDiff, 
     };
   }
 
-  // Handle minor rounding differences from odd reference dimensions at higher DPR
+  // Handle minor rounding differences from subpixel --selector cropping when not --full-page
   if (actualImg.width !== refImg.width || actualImg.height !== refImg.height) {
     const diffW = Math.abs(actualImg.width - refImg.width);
     const diffH = Math.abs(actualImg.height - refImg.height);
-    const maxDrift = Math.ceil(dpr);
+    const maxDrift = fullPage ? 0 : Math.ceil(dpr);
 
-    if (diffW <= maxDrift && diffH <= maxDrift) {
+    if (maxDrift > 0 && diffW <= maxDrift && diffH <= maxDrift) {
       // Crop / pad actualImg to match refImg dimensions exactly
       const conformed = new PNG({ width: refImg.width, height: refImg.height, fill: true });
       for (let y = 0; y < refImg.height; y++) {

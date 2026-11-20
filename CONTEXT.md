@@ -14,6 +14,9 @@ node scripts/verify.mjs
 # Verify PR readiness & SPEC.md <-> Linear key parity
 node scripts/verify-pr-ready.mjs
 
+# Milestone acceptance: green suite runs inside npm test; this command reports remaining gap criteria
+node scripts/acceptance-status.mjs
+
 # Check live Linear stage progression (Todo | In Progress | In Review | Approved | Rework)
 node scripts/sync-linear.mjs --status
 

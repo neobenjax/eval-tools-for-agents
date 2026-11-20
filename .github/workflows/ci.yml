@@ -31,8 +31,13 @@ jobs:
         run: node tools/pixel-perfect-gate/bin/pixel-gate.mjs --help
       - name: Run pre-flight verifier and package tests
         run: node scripts/verify.mjs
+      - name: Fetch base branch for acceptance-test diff
+        if: github.event_name == 'pull_request'
+        run: git fetch --depth=1 origin ${{ github.base_ref }}
       - name: Verify PR readiness and SPEC parity
         if: github.event_name == 'pull_request'
         env:
           GITHUB_HEAD_REF: ${{ github.head_ref }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: node scripts/verify-pr-ready.mjs

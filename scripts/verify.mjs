@@ -38,6 +38,13 @@ for (const pattern of ['.env', '.visual-eval/']) {
   }
 }
 
+console.log('==> [verify] Acceptance gate self-test...');
+try {
+  execSync('node --test scripts/acceptance-status.test.mjs', { cwd: root, stdio: 'inherit' });
+} catch {
+  failed = true;
+}
+
 console.log('==> [verify] Validating package.json & workspace tests...');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 let executedSuites = 0;

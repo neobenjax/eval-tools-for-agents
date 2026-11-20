@@ -16,6 +16,7 @@ Mandatory operating rules for all AI coding assistants (**Antigravity Desktop, A
 ## 2. Linear 1:1 Key Parity & Stage Transitions
 - **Workspace:** `https://linear.app/benjamin-personal-projs` · **Team:** `Side Projects` (`SIDE`).
 - **Single Source of Truth:** Always use the exact native Linear key (`SIDE-XX`) across `SPEC.md`, branch names, commit messages, and PRs.
+- **Proposed keys:** `SPEC.md` rows not yet in Linear use `RS-XX` (never `NEW-XX`, never a guessed `SIDE-XX`). When the owner creates the Linear issue, replace `RS-XX` with its `SIDE-XX` everywhere in one commit.
 - **Commit Format:** `[SIDE-XX] feat: concise description of change`
 - **PR Auto-Closing:** Include `Closes SIDE-XX` in the PR description so Linear auto-closes the exact issue on merge.
 - **Stage Discipline:**

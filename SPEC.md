@@ -4,9 +4,9 @@
 **Repository:** `git@github.com:neobenjax/eval-tools-for-agents.git`  
 **Linear Team:** `Side Projects` (`SIDE`)  
 **Leader & Assignee:** Benjamin Sanchez (`neobenjax`)  
-**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-27` assigned (follow-up to PR #5 & Issue #3). Reference-source scope extension (section 12, proposed rows `RS-1`–`RS-9`) added before M2. Test-driven milestone acceptance (section 13).
+**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-36` assigned (`SIDE-16` `Approved`; Milestone 2b keys `SIDE-28`–`SIDE-36` synced to Linear). Test-driven milestone acceptance (section 13).
 
-`scripts/sync-linear.mjs --sync-spec` rewrites the `[ ]` / `[x]` on lines matching `^- \[ \] \*\*SIDE-<n>\*\*`. A key is `[x]` only when its Linear stage is `Approved`. All Linear-backed issues in Section 4 carry their native `SIDE-<n>` Linear key. Milestone 2b rows use proposed `RS-<n>` keys until the owner creates their Linear issues (section 12); `sync-linear` ignores them and `verify-pr-ready` checks their section 4/8/9 parity like `SIDE-<n>`.
+`scripts/sync-linear.mjs --sync-spec` rewrites the `[ ]` / `[x]` on lines matching `^- \[ \] \*\*SIDE-<n>\*\*`. A key is `[x]` only when its Linear stage is `Approved`. All issues in Section 4 carry their native `SIDE-<n>` Linear key. `RS-<n>` in `AGENTS.md` / `CONTEXT.md` remains documented as the convention for any future proposed rows not yet in Linear.
 
 ---
 
@@ -60,7 +60,7 @@ v1 is the first usable release: install once locally, point the CLI at a web pro
 - Cloud SaaS visual hosting (Percy, Chromatic, S3 sync).
 - Claude Code-specific installation testing (not installed on the target workstation). Skill text may stay compatible with Claude Code's skill layout.
 - Multi-reviewer GitHub PR triage bots or minimum-approval branch blockers.
-- A live Figma connection, plugin, or API in v1. v1 references are exported PNG files. `RS-7` (section 12) adds an optional design-file adapter after v1; the deterministic gate still reads a frozen PNG bundle.
+- A live Figma connection, plugin, or API in v1. v1 references are exported PNG files. `SIDE-34` (section 12) adds an optional design-file adapter after v1; the deterministic gate still reads a frozen PNG bundle.
 - An MCP server in front of the `pixel-gate` CLI. Add one only after section 6 is implemented and covered by a fixture.
 - A vision-model HTTP call inside the CLI. The caller may attach a verdict JSON. The CLI does not fetch one.
 - A CI job whose pass/fail depends on a model looping until `passed: true`.
@@ -93,7 +93,7 @@ M3 (SIDE-23) and a blocking vision verdict are not required for this list.
 
 ## 4. Linear-Synced Milestone & Task Matrix (1:1 `SIDE-XX` Parity)
 
-Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 is merged to `main`, so `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are checked (`[x]`). PR #10 (`SIDE-16`) is merged to `main`, but Linear still shows `SIDE-16` as `In Review`, so it stays unchecked (`[ ]`) until Linear shows `Approved`.
+Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18`) and PR #10 (`SIDE-16`) are merged to `main` and `Approved` in Linear, so all five are checked (`[x]`).
 
 ### Milestone 0: Repo Bootstrap & Linear Sync
 
@@ -104,11 +104,11 @@ Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 is merged to 
 
 ### Milestone 1: Core Deterministic Engine (`pixel-gate`)
 
-PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) is merged to `main`. `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are `Approved`. `SIDE-16` is merged (PR #10) and stays `[ ]` until Linear moves it to `Approved`.
+PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) and PR #10 (`feat/SIDE-16-wireframe-and-determinism`) are merged to `main`. `SIDE-14`, `SIDE-15`, `SIDE-16`, `SIDE-17`, and `SIDE-18` are `Approved`.
 
 - [x] **SIDE-14** `[M1.1]` Scaffold `tools/pixel-perfect-gate` workspace package *(Spine · Depends on: SIDE-13 · Approved)*
 - [x] **SIDE-15** `[M1.2]` Implement Gate 1 `layout-audit.mjs` (DOM, console, network) *(Track A · Depends on: SIDE-14 · Approved)*
-- [ ] **SIDE-16** `[M1.3]` Implement Gate 2 `visual-diff.mjs` (`pixelmatch`, `@2x` DPR, composite, wireframe) *(Track A · Depends on: SIDE-14 · In Review · PR #10 merged)*
+- [x] **SIDE-16** `[M1.3]` Implement Gate 2 `visual-diff.mjs` (`pixelmatch`, `@2x` DPR, composite, wireframe) *(Track A · Depends on: SIDE-14 · Approved)*
 - [x] **SIDE-17** `[M1.4]` Implement Eval Telemetry logger (`telemetry.mjs`) *(Track A · Depends on: SIDE-14 · Approved)*
 - [x] **SIDE-18** `[M1.5]` Wire unified `pixel-gate` CLI & controlled fixture test suite *(Integration · Depends on: SIDE-15, SIDE-16, SIDE-17 · Approved)*
 
@@ -126,19 +126,19 @@ PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) is merged to `main`. `SIDE-14`, `SID
 - [ ] **SIDE-21** `[M2.3]` Install skill links, global CLI, and Chromium (`tools/pixel-perfect-gate/scripts/install.mjs`) *(Track B · Depends on: SIDE-20, SIDE-25 · Todo · re-scoped)*
 - [ ] **SIDE-22** `[M2.4]` Harness smoke check: Antigravity Desktop, Antigravity CLI, and Cursor *(Verification · Depends on: SIDE-19, SIDE-20, SIDE-21 · Todo · re-scoped)*
 
-### Milestone 2b: Reference sources, target adapters & audit loop (proposed — Linear keys TBD)
+### Milestone 2b: Reference sources, target adapters & audit loop
 
-Scope and rationale: section 12. `RS-<n>` are proposed keys, not Linear keys (see section 12 intro). Not part of the v1 Definition of Done (owner decision 7). Every row starts after `SIDE-22`, except `RS-3` (loop contract), which starts right after `SIDE-20`.
+Scope and rationale: section 12. Not part of the v1 Definition of Done (owner decision 7). Every row starts after `SIDE-22`, except `SIDE-30` (loop contract), which starts right after `SIDE-20`.
 
-- [ ] **RS-1** `[M2b.1]` Reference bundle + `reference.kind` (`png`, `html-file`, `url`) and `pixel-gate reference capture` *(Depends on: SIDE-22, SIDE-24, SIDE-25, SIDE-26 · Proposed)*
-- [ ] **RS-2** `[M2b.2]` Dual-run functional parity (scenario on reference and target, per-step state diff) *(Depends on: SIDE-19, RS-1 · Proposed)*
-- [ ] **RS-3** `[M2b.3]` Audit loop contract (`runId`, `loop` object, stop reasons, best iteration) *(Depends on: SIDE-24, SIDE-20 · Proposed)*
-- [ ] **RS-4** `[M2b.4]` Target adapters `static` and `dev-server`, plus PWA checks *(Depends on: SIDE-22, SIDE-25 · Proposed)*
-- [ ] **RS-5** `[M2b.5]` Target adapter `wordpress` (Playground default; wp-env / existing configurable; any build type) with optional structure checks *(Depends on: RS-1, RS-4 · Proposed)*
-- [ ] **RS-6** `[M2b.6]` `screenshot` reference intake and advisory tiers B/C (default `mismatchPct <= 20`, i.e. >= 80% similar) *(Depends on: RS-1, SIDE-16 · Proposed)*
-- [ ] **RS-7** `[M2b.7]` `design-file` reference (Figma first; Penpot/Sketch/XD via export), tokens, layer landmarks, draft scenarios *(Depends on: RS-1, RS-6, RS-8 · Proposed)*
-- [ ] **RS-8** `[M2b.8]` Style/token parity check (`gate2.style.*`) *(Depends on: RS-1 · Proposed)*
-- [ ] **RS-9** `[M2b.9]` Skill playbooks per reference kind + MCP capability detection *(Depends on: SIDE-20, RS-2, RS-3, RS-5, RS-7 · Proposed)*
+- [ ] **SIDE-28** `[M2b.1]` Reference bundle + `reference.kind` (`png`, `html-file`, `url`) and `pixel-gate reference capture` *(Depends on: SIDE-22, SIDE-24, SIDE-25, SIDE-26 · Todo)*
+- [ ] **SIDE-29** `[M2b.2]` Dual-run functional parity (scenario on reference and target, per-step state diff) *(Depends on: SIDE-19, SIDE-28 · Todo)*
+- [ ] **SIDE-30** `[M2b.3]` Audit loop contract (`runId`, `loop` object, stop reasons, best iteration) *(Depends on: SIDE-24, SIDE-20 · Todo)*
+- [ ] **SIDE-31** `[M2b.4]` Target adapters `static` and `dev-server`, plus PWA checks *(Depends on: SIDE-22, SIDE-25 · Todo)*
+- [ ] **SIDE-32** `[M2b.5]` Target adapter `wordpress` (Playground default; wp-env / existing configurable; any build type) with optional structure checks *(Depends on: SIDE-28, SIDE-31 · Todo)*
+- [ ] **SIDE-33** `[M2b.6]` `screenshot` reference intake and advisory tiers B/C (default `mismatchPct <= 20`, i.e. >= 80% similar) *(Depends on: SIDE-28, SIDE-16 · Todo)*
+- [ ] **SIDE-34** `[M2b.7]` `design-file` reference (Figma first; Penpot/Sketch/XD via export), tokens, layer landmarks, draft scenarios *(Depends on: SIDE-28, SIDE-33, SIDE-35 · Todo)*
+- [ ] **SIDE-35** `[M2b.8]` Style/token parity check (`gate2.style.*`) *(Depends on: SIDE-28 · Todo)*
+- [ ] **SIDE-36** `[M2b.9]` Skill playbooks per reference kind + MCP capability detection *(Depends on: SIDE-20, SIDE-29, SIDE-30, SIDE-32, SIDE-34 · Todo)*
 
 ### Milestone 3: Eval history viewer
 
@@ -224,7 +224,7 @@ Required keys on every exit:
 | `artifacts` | Paths the tool wrote, or `null` when it wrote nothing. Includes `composite` and `telemetry` when they exist. |
 | `telemetry` | Path to `.visual-eval/telemetry.jsonl`, or `null` if the run failed before telemetry could be appended. |
 
-Section 12.6 adds an optional `loop` object, optional finding keys (`refBox`, `expected`, `actual`), and `gates.gate2.advisory` (similarity against tier B/C references, never part of `passed`) for Milestone 2b (`RS-3`, `RS-6`). They are additive, so `schemaVersion` stays `1`.
+Section 12.6 adds an optional `loop` object, optional finding keys (`refBox`, `expected`, `actual`), and `gates.gate2.advisory` (similarity against tier B/C references, never part of `passed`) for Milestone 2b (`SIDE-30`, `SIDE-33`). They are additive, so `schemaVersion` stays `1`.
 
 `gate1` / `gate2` may keep the detail PR #2 already prints (counts, `mismatchPct`, `dimensions`) inside `gates`. The stable list for agents is `findings`.
 
@@ -294,7 +294,7 @@ The target repo holds `pixel-gate.config.json` at its root (override with `--con
 - `scenarios` (path to the scenario file).
 - `allowNetwork`: array of origin strings. Default is the origin of `baseUrl` only.
 - `vision`: `{ "enabled": false, "blocking": false }`. Both default false.
-- Milestone 2b (section 12, proposed): per-route `reference` (`kind`, `source`, `prepare`, `crop`, `region`, `selector`, `maxDiff`, `acknowledgeCopyright`), top-level `target` (`kind`, `command`, `readyUrl`, `readyTimeoutMs`, `selector`, `wordpress` with `runtime` / `buildType` / `structureCheck`, `pwa`), and `design.frames`. `reference.maxDiff` overrides `maxDiff` for that route; for advisory tier B/C references (`design-file`, `screenshot`) it defaults to `20` (>= 80% similar). All optional; omitting them keeps the behavior above.
+- Milestone 2b (section 12): per-route `reference` (`kind`, `source`, `prepare`, `crop`, `region`, `selector`, `maxDiff`, `acknowledgeCopyright`), top-level `target` (`kind`, `command`, `readyUrl`, `readyTimeoutMs`, `selector`, `wordpress` with `runtime` / `buildType` / `structureCheck`, `pwa`), and `design.frames`. `reference.maxDiff` overrides `maxDiff` for that route; for advisory tier B/C references (`design-file`, `screenshot`) it defaults to `20` (>= 80% similar). All optional; omitting them keeps the behavior above.
 
 CLI flags override the matching config field for a single run. A flag-only invocation (`--url` plus `--ref`) still works so PR #2 tests keep a path that does not need a config file.
 
@@ -315,7 +315,7 @@ Each scenario is an ordered list of steps. A step has `action` (`goto`, `click`,
 
 Checkboxes here are issue-local. They are not the matrix in section 4. `sync-linear` ignores them because they do not use the `**SIDE-<n>**` line shape.
 
-### SIDE-16 re-scope (M1, In Review in Linear — PR #10 merged)
+### SIDE-16 re-scope (M1, Approved — PR #10 merged)
 
 PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, clipped text, and `console.error`. SIDE-16 delivers wireframe landmark comparison (<=4px tolerance, sidecar discovery), committed reference PNG fixtures, `--full-page` height mismatch enforcement, DPR divisibility validation, and determinism fixes. Status of acceptance items:
 
@@ -420,7 +420,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] `LINEAR_API_KEY` is read only on a server or in a local CLI. A check verifies it is absent from any client-side bundle.
 - [ ] The viewer's dependency in Linear `blockedBy` is `SIDE-24` and `SIDE-19`.
 
-### RS-1 reference bundle and capture (`M2b.1`, proposed)
+### SIDE-28 reference bundle and capture (`M2b.1`)
 
 - [ ] A route with no `reference` behaves exactly as today (`kind: "png"`); the existing test suite passes unchanged.
 - [ ] `pixel-gate reference capture` on an `html-file` fixture (inline CSS + JS, committed font) writes PNG, `.landmarks.json`, `.styles.json`, and `manifest.json` under `.visual-eval/references/<route-id>/<viewport-name>/`, and nothing outside `.visual-eval/`.
@@ -431,7 +431,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] A `url` capture prints the section 12.8 copyright disclaimer and refuses to capture until the user acknowledges it (`reference.acknowledgeCopyright: true` in config, `--acknowledge-copyright`, or answering `yes` at the interactive prompt). Without it, it exits `1` with `gate2.reference-copy-unacknowledged.<route>` and a `blocked` stop reason. With it, `manifest.json` records `copyAcknowledgedAt`. There is no rights field and no origin allowlist.
 - [ ] A loop run never re-reads a `url` source: stopping the fixture server after capture does not change the Gate 2 result. `--refresh` re-captures and writes a new `capturedAt`.
 
-### RS-2 dual-run functional parity (`M2b.2`, proposed)
+### SIDE-29 dual-run functional parity (`M2b.2`)
 
 - [ ] The SIDE-19 scenario fixture runs against an `html-file` reference and a target that matches it, and exits `0` with no `gate3.parity*` findings.
 - [ ] A target whose button renders but does nothing (handler removed) fails with `gate3.parity.<scenario-id>.<step>`, even though Gate 2 on the first screen passes.
@@ -440,7 +440,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] A `screenshot` reference reports `gates.gate3.parity` as `{ "skipped": true, "reason": "reference has no behavior" }` and never `passed: true` on parity alone.
 - [ ] Reference and target run in separate fresh contexts; a test proves that state set on the reference (e.g. `localStorage`) is not visible to the target.
 
-### RS-3 audit loop contract (`M2b.3`, proposed)
+### SIDE-30 audit loop contract (`M2b.3`)
 
 - [ ] Every report carries `loop` with `runId`, `iteration`, `maxIterations` `5`, `best`, `delta`, `stopReason`, and `continue`, on pass, gate failure, and error exits.
 - [ ] A fixture sequence of five telemetry rows asserts each stop reason: `passed`, `blocked` (missing reference), `regression` (new fail id and higher `failCount`), `no-progress` (same fail ids, `mismatchPct` change `< 0.1` on two consecutive iterations), and `max-iterations`.
@@ -448,7 +448,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] A config or flag that tries to raise `maxIterations` above `5` is rejected with a config error (`blocked`); the report still shows `maxIterations` `5`.
 - [ ] `findings` keep the SIDE-24 shape; the optional `refBox`, `expected`, and `actual` keys appear only when set, and `schemaVersion` stays `1`.
 
-### RS-4 static and dev-server targets, PWA checks (`M2b.4`, proposed)
+### SIDE-31 static and dev-server targets, PWA checks (`M2b.4`)
 
 - [ ] `target.kind: "dev-server"` starts `target.command`, waits for `target.readyUrl`, and kills the whole process tree on exit, on both `windows-latest` and `ubuntu-latest` (no orphaned process after the run, asserted by the test).
 - [ ] A command that never becomes ready fails within `target.readyTimeoutMs` with a `blocked` stop reason and a structured `error`.
@@ -456,19 +456,19 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] With `pwa` enabled, a fixture missing its manifest icon fails with `gate1.pwa-installability.<error-id>` taken from `Page.getInstallabilityErrors`, and the fixed fixture passes.
 - [ ] `target.kind: "static"` serves a single HTML file and a directory without extra config.
 
-### RS-5 WordPress target (`M2b.5`, proposed)
+### SIDE-32 WordPress target (`M2b.5`)
 
 - [ ] With no `runtime` set, `playground` is used. On `windows-latest` and `ubuntu-latest` it starts WordPress from a committed blueprint without Docker and reaches REST `GET /wp-json/`.
 - [ ] `runtime: "wp-env"` and `runtime: "existing"` (a local or remote site URL) are accepted. An unreachable site gives a `blocked` stop reason with a structured `error`, not a gate failure.
-- [ ] `buildType` accepts `block-theme`, `classic-theme`, `hybrid-theme`, `patterns`, `custom-blocks`, `page-builder`, and `any` (default). The accuracy rule is the same for every build type: Gate 2 tier A on the browser output, plus RS-2 parity.
+- [ ] `buildType` accepts `block-theme`, `classic-theme`, `hybrid-theme`, `patterns`, `custom-blocks`, `page-builder`, and `any` (default). The accuracy rule is the same for every build type: Gate 2 tier A on the browser output, plus SIDE-29 parity.
 - [ ] A classic-theme fixture (PHP template, no blocks) and a block-theme fixture that both render the prototype pass with the default config. No structure finding appears, because `structureCheck` defaults to `off`.
 - [ ] With `structureCheck: "advisory"`, a page whose whole content is one `core/html` block reports `gate1.wp-freeform-html.1` as `info`, and a block whose saved markup does not validate reports `gate1.wp-invalid-block.<n>` as `info`. Neither changes `passed`; a test asserts exit `0` when the browser output matches.
 - [ ] A converted fixture page matches its `html-file` prototype within the tier A rule, comparing `target.selector` (default `main`, configurable) against `reference.selector`. Setting `target.selector` to `body` compares the whole page.
 - [ ] The front-end capture contains no `#wpadminbar` (asserted on the DOM and the PNG height).
-- [ ] RS-2 parity passes on the converted page only when the prototype's interaction is re-implemented in a way WordPress keeps (enqueued script, block `viewScript`, or page-builder widget); with the script dropped, parity fails.
+- [ ] SIDE-29 parity passes on the converted page only when the prototype's interaction is re-implemented in a way WordPress keeps (enqueued script, block `viewScript`, or page-builder widget); with the script dropped, parity fails.
 - [ ] Credentials (application password) are read from the environment only and never appear in stdout, findings, or artifacts.
 
-### RS-6 screenshot intake and tiers (`M2b.6`, proposed)
+### SIDE-33 screenshot intake and tiers (`M2b.6`)
 
 - [ ] A screenshot whose `width / dpr` does not equal a declared viewport width fails with `gate2.reference-scale-unknown.<route>` and is not resized.
 - [ ] `reference.crop` removes a fixture browser bar; the cropped PNG is what `manifest.json` hashes.
@@ -479,24 +479,24 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] With `advisory.met` false and no other stop rule firing, `loop.continue` is `true` and `stopReason` is `null`. With `passed` true and every advisory target met, `stopReason` is `passed`.
 - [ ] Intake errors (`gate2.reference-scale-unknown.*`, unreadable image) still fail with `blocked`. They are setup problems, not comparison results.
 
-### RS-7 design-file reference (`M2b.7`, proposed)
+### SIDE-34 design-file reference (`M2b.7`)
 
 - [ ] `design.frames[]` maps a frame to route + viewport; a frame whose width differs from the viewport fails with `gate2.frame-viewport-mismatch.<nodeId>`.
 - [ ] With a Figma token in the environment, capture exports each frame through REST `/v1/images` at `scale = dpr`. Without a token, a manually exported PNG with the same name produces the same bundle shape. CI uses only the committed manual export, with no network.
 - [ ] Layer geometry produces a `.landmarks.json` for layers named after configured landmarks; wireframe mode then reports an `info` finding (advisory, tier B) for a target whose `header` moves `> 4` CSS px.
-- [ ] Tokens (from the Variables REST API or a saved `get_variable_defs` output) produce `.tokens.json`, consumed by RS-8.
+- [ ] Tokens (from the Variables REST API or a saved `get_variable_defs` output) produce `.tokens.json`, consumed by SIDE-35.
 - [ ] Prototype `interactions` (`ON_CLICK` → `NODE`/`NAVIGATE`) produce `scenarios.draft.json`. Drafts are never executed as gating scenarios until a human moves them into the scenario file (owner decision 13).
-- [ ] Tier B is advisory with the same default and override as RS-6 (`reference.maxDiff` default `20`): pixel, landmark, and token findings against a design file are `info` and never change `passed`.
+- [ ] Tier B is advisory with the same default and override as SIDE-33 (`reference.maxDiff` default `20`): pixel, landmark, and token findings against a design file are `info` and never change `passed`.
 - [ ] Figma access follows owner decision 9: manual export in CI; REST export only when `FIGMA_TOKEN` is set (never printed or written to artifacts); Figma/Penpot/Sketch MCP output is never read by the gate except a saved `get_variable_defs` file named in config.
 
-### RS-8 style/token parity (`M2b.8`, proposed)
+### SIDE-35 style/token parity (`M2b.8`)
 
 - [ ] For mapped elements, computed `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`, `padding`, `margin`, `gap`, and `border-radius` are compared with the reference `.styles.json` or `.tokens.json`.
 - [ ] A one-step color change (e.g. `#1a73e8` → `#1a74e8`) that stays under `maxDiff` in Gate 2 still fails with `gate2.style.<selector-slug>.color` and `expected` / `actual` set.
 - [ ] An element missing on the target is one finding, not one per property.
 - [ ] Style findings are `fail` against tier A references (`.styles.json` from `html-file` / `url`) and `info` against tier B tokens (`.tokens.json` from a design file).
 
-### RS-9 skill playbooks (`M2b.9`, proposed)
+### SIDE-36 skill playbooks (`M2b.9`)
 
 - [ ] `SKILL.md` has one playbook per `reference.kind` (cases 1–5 in section 12.1): which command to run first, which tier applies, and which optional MCP servers help.
 - [ ] The skill tells the agent to obey `loop.continue` and `loop.stopReason`, and to return to `loop.best.iteration` on `regression`.
@@ -512,21 +512,21 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 
 Linear `blockedBy` relations match Section 4:
 
-1. PR #2 merged (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18` `Approved`). Finish `SIDE-16` section 8 items before `SIDE-16` is `Approved`.
+1. PR #2 and PR #10 merged (`SIDE-14`, `SIDE-15`, `SIDE-16`, `SIDE-17`, `SIDE-18` `Approved`).
 2. **SIDE-24** report schema (`M1.6`). `SIDE-20` and `SIDE-23` both read it.
 3. **SIDE-25** global install and per-project config (`M2.0a`).
 4. **SIDE-26** spec intake (`M2.0b`) and **SIDE-19** (static audit and scenario runner), in the same stage. Includes the section 5 determinism pass: committed PNGs, pinned font, aborted non-fixture network, `ubuntu-latest` as the pixel bar, `windows-latest` CI satisfying the Section 5 Windows v1 requirement.
 5. **SIDE-20** skill, then **SIDE-21** installer, then **SIDE-22** smoke checklist.
 6. **SIDE-27** advisory vision pass and **SIDE-23** viewer, after one real project loop has used schema version `1`.
-7. Milestone 2b (proposed, section 12; owner decision 7). Everything starts after **SIDE-22**, except the loop contract:
-   - **RS-3** loop contract right after **SIDE-24** and **SIDE-20** (it changes what the skill obeys), before **SIDE-21** / **SIDE-22**.
-   - **RS-1** reference bundle after **SIDE-22** (which already follows **SIDE-24**, **SIDE-25**, **SIDE-26**); **RS-4** static/dev-server targets after **SIDE-22** (parallel with RS-1).
-   - **RS-2** parity after **SIDE-19** and **RS-1**; **RS-8** style parity after **RS-1**.
-   - **RS-5** WordPress after **RS-1** and **RS-4**; **RS-6** screenshot tiers after **RS-1** and **SIDE-16**.
-   - **RS-7** design files after **RS-1**, **RS-6**, and **RS-8**.
-   - **RS-9** skill playbooks last, after **SIDE-20**, **RS-2**, **RS-3**, **RS-5**, and **RS-7** (one playbook per case needs every adapter).
+7. Milestone 2b (section 12; owner decision 7). Everything starts after **SIDE-22**, except the loop contract:
+   - **SIDE-30** loop contract right after **SIDE-24** and **SIDE-20** (it changes what the skill obeys), before **SIDE-21** / **SIDE-22**.
+   - **SIDE-28** reference bundle after **SIDE-22** (which already follows **SIDE-24**, **SIDE-25**, **SIDE-26**); **SIDE-31** static/dev-server targets after **SIDE-22** (parallel with SIDE-28).
+   - **SIDE-29** parity after **SIDE-19** and **SIDE-28**; **SIDE-35** style parity after **SIDE-28**.
+   - **SIDE-32** WordPress after **SIDE-28** and **SIDE-31**; **SIDE-33** screenshot tiers after **SIDE-28** and **SIDE-16**.
+   - **SIDE-34** design files after **SIDE-28**, **SIDE-33**, and **SIDE-35**.
+   - **SIDE-36** skill playbooks last, after **SIDE-20**, **SIDE-29**, **SIDE-30**, **SIDE-32**, and **SIDE-34** (one playbook per case needs every adapter).
 
-   `RS-<n>` rows have no Linear `blockedBy` yet; the owner copies these dependencies when creating the issues.
+   All Milestone 2b `SIDE-28`–`SIDE-36` issues and `blockedBy` relations are synced in Linear.
 
 `SIDE-19`'s static checks do not wait on `SIDE-26`'s markdown mapper, but the issue stays one unit so the runner and the audit share the report schema. `SIDE-27` waits on that unit so vision text has finding ids to cite.
 
@@ -575,25 +575,25 @@ All six planning questions from Issue #3 have been resolved by the owner (`@neob
 Decisions 7–13 were resolved by the owner (`@neobenjax`) on PR #12.
 
 7. **Is Milestone 2b part of v1?**  
-   **Resolved:** No. The v1 Definition of Done stays as written. `RS-1`–`RS-9` ship after `SIDE-22`, except `RS-3` (loop contract), which lands right after `SIDE-20` because the skill's stop rules land there.
+   **Resolved:** No. The v1 Definition of Done stays as written. `SIDE-28`–`SIDE-36` ship after `SIDE-22`, except `SIDE-30` (loop contract), which lands right after `SIDE-20` because the skill's stop rules land there.
 8. **Iteration cap for heavy migrations (e.g. a whole WordPress site).**  
    **Resolved:** Keep the 5-iteration hard cap per `runId` for every kind (AGENTS.md §6). A large migration is split into separate loops (one route, or a small group of routes, per `runId`) instead of raising the cap.
-9. **Figma access method (`RS-7`).** Options: manual PNG export only; Figma REST API with a personal access token (frame export; variables need an Enterprise plan); remote Figma MCP server (OAuth, recommended by Figma); desktop Figma MCP server (needs a Dev/Full seat on a paid plan).  
+9. **Figma access method (`SIDE-34`).** Options: manual PNG export only; Figma REST API with a personal access token (frame export; variables need an Enterprise plan); remote Figma MCP server (OAuth, recommended by Figma); desktop Figma MCP server (needs a Dev/Full seat on a paid plan).  
    **Resolved:** Manual export is the CI path. The Figma REST API is the automated freeze path when a token exists. The Figma MCP server is agent context only. Penpot and Sketch MCP servers are treated the same way.
 10. **Tier B/C tolerances (design files and screenshots).**  
     **Resolved:** Permissive and adjustable. The default is 80% similarity, i.e. `mismatchPct <= 20` (`reference.maxDiff` default `20`), and the user can change it per reference. Tier B/C results are **advisory only**: they report `info` findings and guide the loop toward the target, but never set `passed` to `false` or exit `1`.
-11. **WordPress environment and compare region (`RS-5`).**  
+11. **WordPress environment and compare region (`SIDE-32`).**  
     **Resolved:** `runtime: "playground"` by default (no Docker, fits Windows-first). The user can configure it to suit their WordPress development type: `wp-env`, or `existing` for a local or remote site. Every build approach is supported: classic, hybrid, and block themes, patterns, custom blocks, and page builders. What matters is the accuracy of the browser output, so the Gutenberg structure check is optional (`structureCheck`: `off` by default, `advisory` when enabled) and never a hard gate. The content-area comparison (`target.selector`, default `main`) stays the configurable default.
 12. **Copying third-party sites (case 4).**  
     **Resolved:** A copyright disclaimer plus an explicit acknowledgement that the user understands what copying means. The acknowledgement is required before a `url` capture (section 12.8). There is no rights field and no origin allowlist. Captured bundles stay out of git by default.
-13. **Prototype-link scenarios from design files (`RS-7`).**  
+13. **Prototype-link scenarios from design files (`SIDE-34`).**  
     **Resolved:** They stay drafts that a human approves by moving them into the scenario file. They are never executed as gating scenarios automatically, and an agent never promotes them itself.
 
 ---
 
 ## 12. Reference Sources, Target Adapters & the Audit Loop (M2b scope extension)
 
-Added before M2 starts, so M2 work does not lock in a PNG-only design. Owner request: the agent must loop until the result matches the reference for five kinds of work. Rows `RS-1`–`RS-9` in section 4 carry this scope. `RS-<n>` are **proposed keys**. They are not Linear keys. When the owner creates the Linear issues, each `RS-<n>` is replaced by its `SIDE-<n>` everywhere in one commit. Until then, `verify-pr-ready` holds `RS-<n>` to the same section 4/8/9 parity as `SIDE-<n>`.
+Added before M2 starts, so M2 work does not lock in a PNG-only design. Owner request: the agent must loop until the result matches the reference for five kinds of work. Rows `SIDE-28`–`SIDE-36` in section 4 carry this scope (Linear Milestone `M2b`).
 
 **Design rule.** Every reference kind is *frozen* into the reference bundle that Gate 2 already understands: a PNG per route and viewport, plus sidecars. Gates 1–3 do not learn about Figma, WordPress, or live URLs. Only the intake side (reference sources) and the launch side (target adapters) change. One compare pipeline serves every case.
 
@@ -608,7 +608,7 @@ Added before M2 starts, so M2 work does not lock in a PNG-only design. Owner req
 | 5 | Figma (or Penpot, Sketch, XD export) → prototype/PWA/site | `--dpr 2` for `@2x` exports. Owner decision 6: exported PNGs only in v1. | No frame-to-route/viewport map, no token/style comparison, no landmark sidecar from layer geometry, no prototype-link → scenario derivation, no tolerance tier for design-tool rasterization, no MCP/REST access path. | **Partially covered** (static PNG export only) |
 | all | Loop until pixel-perfect | 5-iteration cap (AGENTS.md §6, SIDE-20), `iteration` in telemetry, findings schema planned (SIDE-24). | No run identity across iterations, no stop rule other than the cap (no no-progress or regression detection), no "best iteration" record, no definition of "pixel perfect" per reference kind. | **Partially covered** |
 
-**Bottom line.** Before this revision the plan targeted one input: a human-made PNG plus a hand-written scenario, checked against one running URL. Cases 1–3 and 5 were reachable only by manual exporting and without functional parity. Case 4 was not covered. Sections 12.2–12.8 and rows `RS-1`–`RS-9` close those gaps.
+**Bottom line.** Before this revision the plan targeted one input: a human-made PNG plus a hand-written scenario, checked against one running URL. Cases 1–3 and 5 were reachable only by manual exporting and without functional parity. Case 4 was not covered. Sections 12.2–12.8 and rows `SIDE-28`–`SIDE-36` close those gaps.
 
 ### 12.2 Reference sources (`reference.kind`)
 
@@ -617,10 +617,10 @@ Each route in `pixel-gate.config.json` (section 7) gains an optional `reference`
 | `kind` | Input | Freeze step (`pixel-gate reference capture`) | Bundle produced | Functionality source |
 | --- | --- | --- | --- | --- |
 | `png` | Committed PNG (today) | none | PNG (+ optional `.landmarks.json`) | Scenario file only |
-| `html-file` | Path to a single-file HTML prototype (inline CSS + JS) | Serve the file from a local static server, render in the pinned Chromium per viewport, with the section 5 motion/font rules | PNG, `.landmarks.json` (from the DOM), `.styles.json` (computed styles of mapped elements), `manifest.json` | Same scenario file replayed on the reference (RS-2) |
+| `html-file` | Path to a single-file HTML prototype (inline CSS + JS) | Serve the file from a local static server, render in the pinned Chromium per viewport, with the section 5 motion/font rules | PNG, `.landmarks.json` (from the DOM), `.styles.json` (computed styles of mapped elements), `manifest.json` | Same scenario file replayed on the reference (SIDE-29) |
 | `url` | Live URL | Show the copyright disclaimer and require the acknowledgement (12.8). Visit once per viewport. Apply `reference.prepare` steps (dismiss cookie banner, scroll to trigger lazy load), then capture. Record a HAR (`recordHar`) | PNG, `.landmarks.json`, `.styles.json`, `.har`, `manifest.json` | Scenarios replayed against the HAR-backed snapshot (`routeFromHAR`), not the live site |
 | `screenshot` | PNG/JPEG/WebP image | Convert to PNG, apply `reference.crop` (strip browser/OS chrome), check that `width / dpr` equals the declared viewport width | PNG, optional hand-authored `.landmarks.json`, `manifest.json` | **None.** An image has no behavior. The acceptance list may name behaviors, which are checked on the result only |
-| `design-file` | Figma file key + node ids (or a Penpot/Sketch/XD export) | Export each mapped frame at `scale = dpr` (Figma REST `GET /v1/images/:key?ids=…&format=png&scale=…`, scale 0.01–4, or a manual export; owner decision 9: manual export in CI, REST when a token exists). Build landmarks from layer geometry and tokens from variables | PNG, `.landmarks.json`, `.tokens.json`, `manifest.json`, optional `scenarios.draft.json` | Optional: draft scenarios derived from prototype `interactions` (RS-7). A human confirms them before they count |
+| `design-file` | Figma file key + node ids (or a Penpot/Sketch/XD export) | Export each mapped frame at `scale = dpr` (Figma REST `GET /v1/images/:key?ids=…&format=png&scale=…`, scale 0.01–4, or a manual export; owner decision 9: manual export in CI, REST when a token exists). Build landmarks from layer geometry and tokens from variables | PNG, `.landmarks.json`, `.tokens.json`, `manifest.json`, optional `scenarios.draft.json` | Optional: draft scenarios derived from prototype `interactions` (SIDE-34). A human confirms them before they count |
 
 `manifest.json` records provenance: `kind`, source path/URL/file key + node id, `sha256` of the source and of each PNG, `capturedAt`, Chromium/Playwright version, viewport, `dpr`, and `tier` (12.6). Gate 2 refuses a bundle whose `manifest.json` disagrees with its PNG hash (`gate2.reference-tampered.<route>.<viewport>`).
 
@@ -639,13 +639,13 @@ Each route in `pixel-gate.config.json` (section 7) gains an optional `reference`
 
 **Visual capture isolation.** Visual and parity captures use a fresh browser context with `serviceWorkers: "block"`, so a cached service worker from iteration N cannot serve stale assets in iteration N+1. The PWA check runs in a separate context with service workers allowed.
 
-**WordPress accuracy and optional structure checks (case 1).** The pass rule for every WordPress build is the accuracy of the browser output: Gate 2 (tier A) on the rendered front end plus RS-2 parity. How the page is built does not change that rule. `target.wordpress.buildType` names the approach (`block-theme`, `classic-theme`, `hybrid-theme`, `patterns`, `custom-blocks`, `page-builder`, or `any`, the default) and only tunes the optional checks below and the default region examples.
+**WordPress accuracy and optional structure checks (case 1).** The pass rule for every WordPress build is the accuracy of the browser output: Gate 2 (tier A) on the rendered front end plus SIDE-29 parity. How the page is built does not change that rule. `target.wordpress.buildType` names the approach (`block-theme`, `classic-theme`, `hybrid-theme`, `patterns`, `custom-blocks`, `page-builder`, or `any`, the default) and only tunes the optional checks below and the default region examples.
 
 1. Captures the front end **logged out**, so there is no admin bar. When a logged-in capture is configured, `#wpadminbar` is hidden and the `html` top margin is reset.
 2. Compares the region named by `target.selector` (default `main`, configurable, e.g. `.wp-site-blocks` for a block theme, `#content` for a classic theme, or `body` for the whole page) against `reference.selector` (e.g. `body` of the prototype), so theme header/footer the prototype lacks do not count. A blank page template is the alternative (owner decision 11).
 3. `structureCheck` (`off` by default for every `buildType`, or `advisory`). When `advisory`, and only for block-based content (`block-theme`, `hybrid-theme`, `patterns`, `custom-blocks`), the adapter reads `content.raw` via REST (`GET /wp-json/wp/v2/pages/<id>?context=edit`, application-password auth), parses it with `@wordpress/block-serialization-default-parser`, and reports `info` findings: `gate1.wp-freeform-html.<n>` for `core/html` or freeform blocks beyond `wordpress.maxRawHtmlBlocks` (default `0`), and `gate1.wp-invalid-block.<n>` for blocks whose parsed `isValid` is false in the editor. Custom blocks count as normal blocks. Page-builder and classic content is not parsed. These findings never change `passed`.
 
-Prototype `<script>` inside post content is stripped for users without `unfiltered_html`. JavaScript must move to an enqueued theme/plugin script, a block `viewScript`, or the page builder's own script mechanism. RS-2 parity scenarios are what catch a migration that looks right but lost its behavior.
+Prototype `<script>` inside post content is stripped for users without `unfiltered_html`. JavaScript must move to an enqueued theme/plugin script, a block `viewScript`, or the page builder's own script mechanism. SIDE-29 parity scenarios are what catch a migration that looks right but lost its behavior.
 
 ### 12.4 Normalization (both sides, before any diff)
 
@@ -666,11 +666,11 @@ Prototype `<script>` inside post content is stripped for users without `unfilter
 ### 12.5 Functionality parity (not only pixels)
 
 - **Where it applies.** `html-file` and `url` references have real behavior, so parity is required there. A `design-file` has prototype links; parity is optional and comes from derived draft scenarios. A `screenshot` has no behavior, so functional parity is **out of scope** and the report says so (`gates.gate3.parity: { skipped: true, reason: "reference has no behavior" }`).
-- **Dual run.** RS-2 runs the same SIDE-19 scenario file against the reference and against the target, in separate fresh contexts. After each step it captures a state screenshot on both sides and compares them with Gate 2 rules (same masks, tier). Outcome mismatches give `gate3.parity.<scenario-id>.<step>`, for example: a step succeeds on the reference but its selector is missing on the target, or the URL/route or a network call differs. State mismatches give `gate3.parity-state.<scenario-id>.<step>`.
+- **Dual run.** SIDE-29 runs the same SIDE-19 scenario file against the reference and against the target, in separate fresh contexts. After each step it captures a state screenshot on both sides and compares them with Gate 2 rules (same masks, tier). Outcome mismatches give `gate3.parity.<scenario-id>.<step>`, for example: a step succeeds on the reference but its selector is missing on the target, or the URL/route or a network call differs. State mismatches give `gate3.parity-state.<scenario-id>.<step>`.
 - **Portable locators.** A migration changes class names and DOM shape. Parity scenarios therefore use role/name/label/text locators (`getByRole('button', { name: 'Subscribe' })`) or `data-testid`, not CSS classes. A step with a raw CSS selector is allowed but fails parity when it does not resolve on both sides (`gate3.parity-unportable-locator.<scenario-id>.<step>`).
 - **Authoring.** A human or the agent may record a flow with Playwright codegen or by driving the reference through Playwright MCP / Chrome DevTools MCP. Only the saved scenario file counts. An MCP session never sets `passed` (owner decision 3).
 - **Network behavior.** For `url`, form posts and XHRs observed in the reference HAR become optional expectations (method + path pattern), so a copy that renders a form but never submits it fails parity.
-- **Figma prototype links.** RS-7 reads node `interactions` (trigger such as `ON_CLICK`, action `NODE` with `navigation` `NAVIGATE`/`OVERLAY` to a `destinationId`) and writes `scenarios.draft.json`: "click the element mapped to layer X, expect the state to match the export of frame Y". Mapping layers to DOM elements needs a convention (`data-figma-node` or a matching accessible name). Transitions such as Smart Animate are not compared (motion is disabled). Drafts do not count until a human moves them into the scenario file (owner decision 13); an agent never promotes them.
+- **Figma prototype links.** SIDE-34 reads node `interactions` (trigger such as `ON_CLICK`, action `NODE` with `navigation` `NAVIGATE`/`OVERLAY` to a `destinationId`) and writes `scenarios.draft.json`: "click the element mapped to layer X, expect the state to match the export of frame Y". Mapping layers to DOM elements needs a convention (`data-figma-node` or a matching accessible name). Transitions such as Smart Animate are not compared (motion is disabled). Drafts do not count until a human moves them into the scenario file (owner decision 13); an agent never promotes them.
 
 ### 12.6 Audit loop contract and what "pixel perfect" means
 
@@ -738,7 +738,7 @@ Before every `url` capture, the CLI prints this disclaimer to stderr (stdout sta
 
 > Copying a website's design, text, images, or code can infringe copyright, trademark, or the site's terms of service. A visual or functional copy does not give you any rights to the original. Only publish a copy you own, have a license for, or have permission to make. This tool does not check rights for you.
 
-The capture proceeds only when the user has acknowledged it: `reference.acknowledgeCopyright: true` in the config, the `--acknowledge-copyright` flag, or `yes` at the interactive prompt (TTY only). Without it, the capture exits `1` with `gate2.reference-copy-unacknowledged.<route>` and a `blocked` stop reason. The acknowledgement time is stored in `manifest.json` (`copyAcknowledgedAt`). The skill (RS-9) tells agents to show the disclaimer to the user and never to acknowledge it on the user's behalf. The tool also keeps captured bundles under the git-ignored `.visual-eval/references/` unless the project copies them out (12.2), and never downloads assets for reuse in the result.
+The capture proceeds only when the user has acknowledged it: `reference.acknowledgeCopyright: true` in the config, the `--acknowledge-copyright` flag, or `yes` at the interactive prompt (TTY only). Without it, the capture exits `1` with `gate2.reference-copy-unacknowledged.<route>` and a `blocked` stop reason. The acknowledgement time is stored in `manifest.json` (`copyAcknowledgedAt`). The skill (SIDE-36) tells agents to show the disclaimer to the user and never to acknowledge it on the user's behalf. The tool also keeps captured bundles under the git-ignored `.visual-eval/references/` unless the project copies them out (12.2), and never downloads assets for reuse in the result.
 
 ---
 

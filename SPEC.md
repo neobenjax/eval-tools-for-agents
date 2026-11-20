@@ -21,11 +21,11 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 - npm workspace `tools/pixel-perfect-gate` with `playwright`, `pixelmatch`, `pngjs`, and `commander`. Package bin name is `pixel-gate`. Docs still invoke `node tools/pixel-perfect-gate/bin/pixel-gate.mjs` from this repo.
 - One Chromium launch per run (`bin/pixel-gate.mjs`).
 - Gate 1 (`src/layout-audit.mjs`): horizontal overflow, clipped text, sibling overlap (`data-allow-overlap` and negative-margin opt-out), broken images, `console.error` / `pageerror`, HTTP status `>= 400`, and failed requests.
-- Gate 2 (`src/visual-diff.mjs`): `pixelmatch`, `--dpr`, `--mask`, `--full-page`, `--selector`, 3-panel `Reference | Actual | Diff` composite. `--mode wireframe` writes a 2-panel composite, skips `pixelmatch`, and returns `passed: true` with no structural metric.
+- Gate 2 (`src/visual-diff.mjs`): `pixelmatch`, `--dpr`, `--mask`, `--full-page`, `--selector`, 3-panel `Reference | Actual | Diff` composite. `--mode wireframe` writes a 2-panel composite, skips `pixelmatch`, and evaluates landmark bounding boxes (`header,nav,main,footer` or custom `--landmarks`) against an expected sidecar or `--ref-landmarks` with `<= 4` CSS px tolerance, failing on shifts > 4px or missing landmarks.
 - Telemetry (`src/telemetry.mjs`): append-only `.visual-eval/telemetry.jsonl` with `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`.
-- Stdout today is one JSON object: `passed`, `iteration`, `durationMs`, `gate1`, `gate2`, `telemetry`. Exit `0` when both gates pass, exit `1` when they do not. A missing reference file prints `{ passed: false, error }` and exits `1`. Other crashes can still omit that object.
+- Stdout today is one JSON object: `passed`, `iteration`, `durationMs`, `gate1`, `gate2`, `telemetry`. Exit `0` when both gates pass, exit `1` when they do not. All runtime and engine failures in `bin/pixel-gate.mjs` are caught and print `{ passed: false, error, ... }` with telemetry; Commander option-parsing failures before the `try` block exit via Commander without JSON.
 - Animations, transitions, and the caret are forced to zero duration before capture. The run waits on `document.fonts.ready`.
-- Tests (12/12 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, and wireframe mode. The 1x and `@2x` references are screenshots taken in the same test, not committed PNGs; `--full-page` height-mismatch and wireframe landmark tolerance remain open in Section 8 (`SIDE-16`). CI runs on both `ubuntu-latest` and `windows-latest`.
+- Tests (15/15 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`.
 
 That engine is the core. It is not yet the product above. Nothing in PR #2 ingests a project's routes or acceptance list, runs a user flow, installs a global CLI for an arbitrary repo, or defines the Section 6 report an agent must read.
 
@@ -88,7 +88,7 @@ M3 (SIDE-23) and a blocking vision verdict are not required for this list.
 
 ## 4. Linear-Synced Milestone & Task Matrix (1:1 `SIDE-XX` Parity)
 
-Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 is merged to `main`, so `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are checked (`[x]`), while `SIDE-16` remains unchecked (`[ ]`, `In Review`) until its remaining Section 8 items land.
+Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 is merged to `main`, so `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are checked (`[x]`), while `SIDE-16` remains unchecked (`[ ]`, `In Review`) until PR #10 is merged/Approved.
 
 ### Milestone 0: Repo Bootstrap & Linear Sync
 
@@ -99,11 +99,11 @@ Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 is merged to 
 
 ### Milestone 1: Core Deterministic Engine (`pixel-gate`)
 
-PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) is merged to `main`. `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are `Approved`. `SIDE-16` remains `In Review` until its remaining wireframe and committed-PNG acceptance criteria in section 8 land.
+PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) is merged to `main`. `SIDE-14`, `SIDE-15`, `SIDE-17`, and `SIDE-18` are `Approved`. `SIDE-16` remains `In Review` on PR #10 until merged/Approved.
 
 - [x] **SIDE-14** `[M1.1]` Scaffold `tools/pixel-perfect-gate` workspace package *(Spine · Depends on: SIDE-13 · Approved)*
 - [x] **SIDE-15** `[M1.2]` Implement Gate 1 `layout-audit.mjs` (DOM, console, network) *(Track A · Depends on: SIDE-14 · Approved)*
-- [ ] **SIDE-16** `[M1.3]` Implement Gate 2 `visual-diff.mjs` (`pixelmatch`, `@2x` DPR, composite, wireframe) *(Track A · Depends on: SIDE-14 · In Review · remaining items in section 8)*
+- [ ] **SIDE-16** `[M1.3]` Implement Gate 2 `visual-diff.mjs` (`pixelmatch`, `@2x` DPR, composite, wireframe) *(Track A · Depends on: SIDE-14 · In Review · PR #10 open)*
 - [x] **SIDE-17** `[M1.4]` Implement Eval Telemetry logger (`telemetry.mjs`) *(Track A · Depends on: SIDE-14 · Approved)*
 - [x] **SIDE-18** `[M1.5]` Wire unified `pixel-gate` CLI & controlled fixture test suite *(Integration · Depends on: SIDE-15, SIDE-16, SIDE-17 · Approved)*
 
@@ -291,7 +291,7 @@ Checkboxes here are issue-local. They are not the matrix in section 4. `sync-lin
 
 ### SIDE-16 re-scope (M1, In Review — PR #2 merged)
 
-PR #2 already compares pixels, honors `--dpr`, writes the 3-panel composite, covers `--mask`, clipped text, and `console.error`, and has a wireframe flag that always passes. Status of acceptance items:
+PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, clipped text, and `console.error`. SIDE-16 delivers wireframe landmark comparison (<=4px tolerance, sidecar discovery), committed reference PNG fixtures, `--full-page` height mismatch enforcement, DPR divisibility validation, and determinism fixes. Status of acceptance items:
 
 - [x] Wireframe mode fails when a landmark box (`header`, `nav`, `main`, `footer`, or a selector listed in config) moves more than `4` CSS pixels on `x` or `y`, or changes width or height by more than `4` CSS pixels.
 - [x] A color-only change (same boxes, different paint) stays passing in wireframe mode.
@@ -419,14 +419,14 @@ Tracked so later issues extend the engine instead of replacing it.
 | --- | --- | --- |
 | Single Chromium launch | Yes | — |
 | Gate 1 overflow, overlap, broken images, HTTP `>= 400`, clipped text, console error | Yes, with tests | — |
-| Gate 2 pixelmatch, `@2x`, composite, `--selector`, `--mask` | Yes, with tests | Committed PNG, full-page height-mismatch fixture (SIDE-16) |
-| Wireframe | Flag only; always `passed: true` | Landmark tolerance (SIDE-16) |
+| Gate 2 pixelmatch, `@2x`, composite, `--selector`, `--mask` | Yes, with tests. Committed PNGs and the 1px full-page height mismatch closed in SIDE-16 | — |
+| Wireframe | Flag only in PR #2; landmark checks (<=4px tolerance, sidecar discovery, missing/shifted) closed in SIDE-16 | — |
 | Telemetry JSONL | Yes | Add `schemaVersion` and finding ids (SIDE-24) |
 | Stdout JSON | `{passed, gate1, gate2, telemetry}` + error JSON | Section 6 envelope (SIDE-24) |
 | Animations off, `document.fonts.ready` | Yes | Pinned font file and committed reference (section 5, SIDE-26) |
 | Network fail-closed | No | Section 5, exercised in SIDE-26 |
 | Global CLI and project config | Bin field only; docs use a repo-local path | SIDE-25 |
-| CI | `ubuntu-latest` + `windows-latest` (`npm ci`, `--help`, 12/12 tests) | Section 5 committed-PNG pixel bar on Ubuntu (SIDE-26) |
+| CI | `ubuntu-latest` + `windows-latest` (`npm ci`, `--help`, 15/15 tests) | Section 5 committed-PNG pixel bar on Ubuntu (SIDE-26) |
 
 ---
 

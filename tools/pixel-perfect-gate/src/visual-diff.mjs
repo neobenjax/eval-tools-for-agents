@@ -81,8 +81,25 @@ function slugifySelector(selector) {
     .replace(/^-+|-+$/g, '') || 'unknown';
 }
 
-export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmarks = null, tolerance = 4) {
+function axisDelta(actual, expected) {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected)) return Infinity;
+  return Math.abs(actual - expected);
+}
+
+export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmarks = null, tolerance = 4, hasSidecar = false) {
   const findings = [];
+
+  if (hasSidecar && (!Array.isArray(expectedLandmarks) || expectedLandmarks.length === 0)) {
+    findings.push({
+      id: 'gate2.landmark.invalid-sidecar',
+      gate: 'gate2',
+      severity: 'fail',
+      selector: '',
+      box: null,
+      text: 'Expected landmarks sidecar is present but does not contain a non-empty array of landmarks.',
+    });
+    return { passed: false, findings, actualLandmarks };
+  }
 
   if (!Array.isArray(actualLandmarks) || actualLandmarks.length === 0) {
     findings.push({
@@ -123,10 +140,10 @@ export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmark
         continue;
       }
 
-      const dx = Math.abs(act.x - exp.x);
-      const dy = Math.abs(act.y - exp.y);
-      const dw = Math.abs(act.width - exp.width);
-      const dh = Math.abs(act.height - exp.height);
+      const dx = axisDelta(act.x, exp.x);
+      const dy = axisDelta(act.y, exp.y);
+      const dw = axisDelta(act.width, exp.width);
+      const dh = axisDelta(act.height, exp.height);
       const maxDelta = Math.max(dx, dy, dw, dh);
 
       if (maxDelta > tolerance) {
@@ -169,7 +186,8 @@ export function compareVisual({
     const lmResult = compareWireframeLandmarks(
       wireframe?.actualLandmarks ?? [],
       wireframe?.expectedLandmarks ?? null,
-      wireframe?.tolerance ?? 4
+      wireframe?.tolerance ?? 4,
+      wireframe?.hasSidecar ?? false
     );
     return {
       passed: lmResult.passed,

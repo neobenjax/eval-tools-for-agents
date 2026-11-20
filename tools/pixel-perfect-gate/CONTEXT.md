@@ -15,5 +15,5 @@ node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --r
 ## Architecture
 
 - **Single-Browser Pass:** `bin/pixel-gate.mjs` launches Chromium once, runs Gate 1 (`src/layout-audit.mjs`), captures screenshots, and runs Gate 2 (`src/visual-diff.mjs`).
-- **Artifacts:** Writes `actual.png`, `diff.png`, `composite-diff.png` (`Reference | Actual | Diff`), and `telemetry.jsonl` under `--out` (default `.visual-eval/`).
+- **Artifacts:** Writes `actual.png`, `composite-diff.png` (3-panel `Reference | Actual | Diff` in pixel mode, or 2-panel `Reference | Actual` in wireframe mode), `diff.png` (pixel mode only), and `telemetry.jsonl` under `--out` (default `.visual-eval/`).
 - **Agent Looping:** Designed for autonomous 5-iteration repair loops until `"passed": true`.

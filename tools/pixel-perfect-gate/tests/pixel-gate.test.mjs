@@ -28,6 +28,7 @@ async function runCli(args) {
 }
 
 test.before(async () => {
+  fs.rmSync(tmpOut, { recursive: true, force: true });
   fs.mkdirSync(tmpOut, { recursive: true });
   server = http.createServer((req, res) => {
     const cleanUrl = (req.url || '/').split('?')[0];
@@ -145,9 +146,10 @@ test('supports wireframe mode without failing on pixelmatch diffs', async () => 
 
 test('wireframe mode: passes color-only changes, fails on >4px landmark shift and blank page', async () => {
   const wireRef = path.join(fixturesDir, 'wireframe-base-1x.png');
-  const wireLandmarks = path.join(fixturesDir, 'wireframe-base.landmarks.json');
+  const wireLandmarks = path.join(fixturesDir, 'wireframe-base-1x.landmarks.json');
+  const missingCoordLandmarks = path.join(fixturesDir, 'wireframe-missing-coordinate.landmarks.json');
 
-  // 1. Color-only change with identical landmark boxes -> passes
+  // 1. Color-only change with explicit --ref-landmarks -> passes
   const passRun = await runCli([
     '--url', `${baseUrl}/wireframe-color-only.html`,
     '--ref', wireRef,
@@ -160,7 +162,19 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   assert.equal(passRun.json.gate2.passed, true);
   assert.equal(passRun.json.gate2.findings.length, 0);
 
-  // 2. Shifted <main> landmark (>4px) -> fails
+  // 2. Discovery: color-only change WITHOUT --ref-landmarks discovers wireframe-base-1x.landmarks.json -> passes
+  const passDiscovered = await runCli([
+    '--url', `${baseUrl}/wireframe-color-only.html`,
+    '--ref', wireRef,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-color-only-discovered'),
+  ]);
+  assert.equal(passDiscovered.code, 0);
+  assert.equal(passDiscovered.json.passed, true);
+  assert.equal(passDiscovered.json.gate2.passed, true);
+  assert.equal(passDiscovered.json.gate2.findings.length, 0);
+
+  // 3. Shifted <main> landmark (>4px) with explicit --ref-landmarks -> fails
   const shiftRun = await runCli([
     '--url', `${baseUrl}/wireframe-shifted.html`,
     '--ref', wireRef,
@@ -173,7 +187,86 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   assert.equal(shiftRun.json.gate2.passed, false);
   assert.ok(shiftRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
 
-  // 3. Blank page (0 landmarks) -> fails
+  // 4. Discovery: shifted <main> landmark WITHOUT --ref-landmarks discovers sidecar -> fails
+  const shiftDiscovered = await runCli([
+    '--url', `${baseUrl}/wireframe-shifted.html`,
+    '--ref', wireRef,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-shifted-discovered'),
+  ]);
+  assert.equal(shiftDiscovered.code, 1);
+  assert.equal(shiftDiscovered.json.passed, false);
+  assert.equal(shiftDiscovered.json.gate2.passed, false);
+  assert.ok(shiftDiscovered.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+
+  // 5. Boundary pin: exactly 4px shift on <main> (within <=4px tolerance) -> passes
+  const shift4px = await runCli([
+    '--url', `${baseUrl}/wireframe-shift-4px.html`,
+    '--ref', wireRef,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-shift-4px'),
+  ]);
+  assert.equal(shift4px.code, 0);
+  assert.equal(shift4px.json.passed, true);
+  assert.equal(shift4px.json.gate2.passed, true);
+  assert.equal(shift4px.json.gate2.findings.length, 0);
+
+  // 6. Boundary pin: exactly 5px shift on <main> (> 4px tolerance) -> fails
+  const shift5px = await runCli([
+    '--url', `${baseUrl}/wireframe-shift-5px.html`,
+    '--ref', wireRef,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-shift-5px'),
+  ]);
+  assert.equal(shift5px.code, 1);
+  assert.equal(shift5px.json.passed, false);
+  assert.equal(shift5px.json.gate2.passed, false);
+  assert.ok(shift5px.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+
+  const nullCoordLandmarks = path.join(fixturesDir, 'wireframe-null-coordinate.landmarks.json');
+  const emptyLandmarks = path.join(fixturesDir, 'wireframe-empty.landmarks.json');
+
+  // 7. Fail-closed: missing coordinate (e.g. omitted 'x') in landmarks file fails closed
+  const missingCoordRun = await runCli([
+    '--url', `${baseUrl}/wireframe-base.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', missingCoordLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-missing-coord'),
+  ]);
+  assert.equal(missingCoordRun.code, 1);
+  assert.equal(missingCoordRun.json.passed, false);
+  assert.equal(missingCoordRun.json.gate2.passed, false);
+  assert.ok(missingCoordRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.footer'));
+
+  // 8. Fail-closed on null coordinate at x: 0 (proves operands checked before arithmetic without ToNumber(null) === 0 hole)
+  const nullCoordRun = await runCli([
+    '--url', `${baseUrl}/wireframe-zero-header.html`,
+    '--ref', wireRef,
+    '--landmarks', 'header',
+    '--ref-landmarks', nullCoordLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-null-coord'),
+  ]);
+  assert.equal(nullCoordRun.code, 1);
+  assert.equal(nullCoordRun.json.passed, false);
+  assert.equal(nullCoordRun.json.gate2.passed, false);
+  assert.ok(nullCoordRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.header'));
+
+  // 9. Sidecar present but empty array ([]) fails with invalid-sidecar finding
+  const emptySidecarRun = await runCli([
+    '--url', `${baseUrl}/wireframe-base.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', emptyLandmarks,
+    '--mode', 'wireframe',
+    '--out', path.join(tmpOut, 'run-wireframe-empty-sidecar'),
+  ]);
+  assert.equal(emptySidecarRun.code, 1);
+  assert.equal(emptySidecarRun.json.passed, false);
+  assert.equal(emptySidecarRun.json.gate2.passed, false);
+  assert.ok(emptySidecarRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+
+  // 10. Blank page (0 landmarks) -> fails
   const blankRun = await runCli([
     '--url', `${baseUrl}/wireframe-blank.html`,
     '--ref', wireRef,
@@ -225,6 +318,34 @@ test('--full-page passes on exact committed full-page PNG and fails on height mi
   assert.equal(failRun.json.passed, false);
   assert.equal(failRun.json.gate2.passed, false);
   assert.match(failRun.json.gate2.error, /Dimension mismatch/);
+
+  // Strict 1px boundary check using 480x421 committed PNG (1px taller than 480x420 actual page)
+  const tallerRef = path.join(fixturesDir, 'committed-fullpage-1px-taller-1x.png');
+
+  // 1. With --full-page: maxDrift is 0 -> hard fail on 1px height mismatch
+  const fail1pxFull = await runCli([
+    '--url', `${baseUrl}/committed-fullpage.html`,
+    '--ref', tallerRef,
+    '--viewport', '480x280',
+    '--full-page',
+    '--out', path.join(tmpOut, 'run-fullpage-1px-taller-fail'),
+  ]);
+  assert.equal(fail1pxFull.code, 1);
+  assert.equal(fail1pxFull.json.passed, false);
+  assert.equal(fail1pxFull.json.gate2.passed, false);
+  assert.match(fail1pxFull.json.gate2.error, /Dimension mismatch/);
+
+  // 2. Without --full-page: maxDrift is Math.ceil(dpr) = 1 -> cropped/padded within tolerance and passes (0% mismatch)
+  const pass1pxCropped = await runCli([
+    '--url', `${baseUrl}/committed-fullpage.html`,
+    '--ref', tallerRef,
+    '--viewport', '480x420',
+    '--out', path.join(tmpOut, 'run-fullpage-1px-taller-cropped-pass'),
+  ]);
+  assert.equal(pass1pxCropped.code, 0);
+  assert.equal(pass1pxCropped.json.passed, true);
+  assert.equal(pass1pxCropped.json.gate2.passed, true);
+  assert.equal(pass1pxCropped.json.gate2.mismatchPct, 0);
 });
 
 test('flags overlapping siblings when data-allow-overlap is absent', async () => {
@@ -350,8 +471,8 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
       assert.notEqual(diffPng.data[diffIdx], 255);
 
       const refPanelIdx = (y * compositePng.width + x) * 4;
-      const actPanelIdx = (y * compositePng.width + (480 + gap + x)) * 4;
-      const diffPanelIdx = (y * compositePng.width + (480 * 2 + gap * 2 + x)) * 4;
+      const actPanelIdx = (y * compositePng.width + (actualPng.width + gap + x)) * 4;
+      const diffPanelIdx = (y * compositePng.width + (actualPng.width * 2 + gap * 2 + x)) * 4;
       assert.deepEqual(Array.from(compositePng.data.slice(refPanelIdx, refPanelIdx + 4)), [20, 20, 20, 255]);
       assert.deepEqual(Array.from(compositePng.data.slice(actPanelIdx, actPanelIdx + 4)), [20, 20, 20, 255]);
       assert.notEqual(compositePng.data[diffPanelIdx], 255);
@@ -398,6 +519,9 @@ test('fails with a dimension finding when reference dimensions are not divisible
   assert.equal(code, 1);
   assert.equal(json.passed, false);
   assert.match(json.error, /not divisible by --dpr 2/);
+  assert.ok(json.gate2);
+  assert.equal(json.gate2.passed, false);
+  assert.match(json.gate2.error, /not divisible by --dpr 2/);
   assert.ok(fs.existsSync(json.telemetry));
 });
 
@@ -419,32 +543,39 @@ test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, 
   const cases = [
     {
       name: 'conn-refused',
-      args: ['--url', 'http://127.0.0.1:1/'],
+      args: ['--url', 'http://127.0.0.1:54321/'],
+      expectedError: /ERR_CONNECTION_REFUSED/,
     },
     {
       name: 'timeout',
       args: ['--url', `${baseUrl}/slow-timeout`, '--timeout', '300'],
+      expectedError: /Timeout|timed out/i,
     },
     {
       name: 'missing-selector',
       args: ['--url', `${baseUrl}/passing-card.html`, '--ref', ref1xPath, '--selector', '#does-not-exist'],
+      expectedError: /locator.*#does-not-exist|Timeout/i,
     },
     {
       name: 'missing-ref',
       args: ['--url', `${baseUrl}/passing-card.html`, '--ref', path.join(tmpOut, 'non-existent-ref.png')],
+      expectedError: /Reference image not found/i,
     },
   ];
 
   for (const c of cases) {
     const outDir = path.join(tmpOut, `run-fatal-${c.name}`);
+    fs.rmSync(outDir, { recursive: true, force: true });
     const { code, json } = await runCli([...c.args, '--out', outDir]);
     assert.equal(code, 1, `${c.name} should exit 1`);
     assert.equal(json.passed, false, `${c.name} should report passed: false`);
     assert.ok(typeof json.error === 'string' && json.error.length > 0, `${c.name} should include error`);
+    assert.match(json.error, c.expectedError, `${c.name} should match expected error substring`);
     assert.ok(json.telemetry && fs.existsSync(json.telemetry), `${c.name} should write telemetry.jsonl`);
     const lines = fs.readFileSync(json.telemetry, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
     assert.equal(lines.length, 1, `${c.name} should have 1 telemetry entry`);
     assert.equal(lines[0].passed, false);
     assert.ok(typeof lines[0].error === 'string');
+    assert.match(lines[0].error, c.expectedError, `${c.name} telemetry error should match expected error substring`);
   }
 });

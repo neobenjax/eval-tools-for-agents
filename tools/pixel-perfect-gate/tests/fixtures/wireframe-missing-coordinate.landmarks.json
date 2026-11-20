@@ -1,0 +1,6 @@
+[
+  { "selector": "header", "index": 0, "x": 16, "y": 16, "width": 448, "height": 40 },
+  { "selector": "nav", "index": 0, "x": 16, "y": 68, "width": 120, "height": 152 },
+  { "selector": "main", "index": 0, "x": 148, "y": 68, "width": 316, "height": 152 },
+  { "selector": "footer", "index": 0, "y": 232, "width": 448, "height": 32 }
+]

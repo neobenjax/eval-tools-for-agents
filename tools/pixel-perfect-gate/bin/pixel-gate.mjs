@@ -49,7 +49,7 @@ function resolveExpectedLandmarks(refPath, refLandmarksPath) {
     if (!fs.existsSync(refLandmarksPath)) {
       throw new Error(`Reference landmarks file not found: ${refLandmarksPath}`);
     }
-    return JSON.parse(fs.readFileSync(refLandmarksPath, 'utf8'));
+    return { data: JSON.parse(fs.readFileSync(refLandmarksPath, 'utf8')), found: true };
   }
   if (!refPath) return null;
   const parsed = path.parse(refPath);
@@ -59,7 +59,7 @@ function resolveExpectedLandmarks(refPath, refLandmarksPath) {
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
-      return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      return { data: JSON.parse(fs.readFileSync(candidate, 'utf8')), found: true };
     }
   }
   return null;
@@ -97,6 +97,12 @@ try {
   if (opts.ref) {
     refImg = readReferencePng(opts.ref);
     if (refImg.width % dpr !== 0 || refImg.height % dpr !== 0) {
+      gate2Result = {
+        passed: false,
+        mode,
+        error: `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`,
+        dimensions: `${refImg.width}x${refImg.height}`,
+      };
       throw new Error(
         `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`
       );
@@ -253,7 +259,7 @@ try {
 
   gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
   if (opts.ref && refImg) {
-    const expectedLandmarks = mode === 'wireframe' ? resolveExpectedLandmarks(opts.ref, opts.refLandmarks) : null;
+    const resolvedSidecar = mode === 'wireframe' ? resolveExpectedLandmarks(opts.ref, opts.refLandmarks) : null;
     gate2Result = compareVisual({
       refImg,
       actualPath,
@@ -264,7 +270,12 @@ try {
       maskBoxes,
       dpr,
       fullPage: Boolean(opts.fullPage),
-      wireframe: mode === 'wireframe' ? { actualLandmarks, expectedLandmarks, tolerance: 4 } : null,
+      wireframe: mode === 'wireframe' ? {
+        actualLandmarks,
+        expectedLandmarks: resolvedSidecar ? resolvedSidecar.data : null,
+        hasSidecar: Boolean(resolvedSidecar?.found),
+        tolerance: 4,
+      } : null,
     });
     gate2Result.artifacts = { ...gate2Result.artifacts, reference: opts.ref };
   }

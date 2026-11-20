@@ -437,7 +437,8 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 
 - [ ] Every report carries `loop` with `runId`, `iteration`, `maxIterations` `5`, `best`, `delta`, `stopReason`, and `continue`, on pass, gate failure, and error exits.
 - [ ] A fixture sequence of five telemetry rows asserts each stop reason: `passed`, `blocked` (missing reference), `regression` (new fail id and higher `failCount`), `no-progress` (same fail ids, `mismatchPct` change `< 0.1` on two consecutive iterations), and `max-iterations`.
-- [ ] Two different `runId` values in the same `telemetry.jsonl` do not affect each other's `best` or `delta`.
+- [ ] Two different `runId` values in the same `telemetry.jsonl` do not affect each other's `best` or `delta`, so a large migration split into separate loops (owner decision 8) tracks each loop independently.
+- [ ] A config or flag that tries to raise `maxIterations` above `5` is rejected with a config error (`blocked`); the report still shows `maxIterations` `5`.
 - [ ] `findings` keep the SIDE-24 shape; the optional `refBox`, `expected`, and `actual` keys appear only when set, and `schemaVersion` stays `1`.
 
 ### RS-4 static and dev-server targets, PWA checks (`M2b.4`, proposed)
@@ -477,7 +478,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] With a Figma token in the environment, capture exports each frame through REST `/v1/images` at `scale = dpr`. Without a token, a manually exported PNG with the same name produces the same bundle shape. CI uses only the committed manual export, with no network.
 - [ ] Layer geometry produces a `.landmarks.json` for layers named after configured landmarks; wireframe mode then reports an `info` finding (advisory, tier B) for a target whose `header` moves `> 4` CSS px.
 - [ ] Tokens (from the Variables REST API or a saved `get_variable_defs` output) produce `.tokens.json`, consumed by RS-8.
-- [ ] Prototype `interactions` (`ON_CLICK` → `NODE`/`NAVIGATE`) produce `scenarios.draft.json`. Drafts are never executed as gating scenarios until moved into the scenario file.
+- [ ] Prototype `interactions` (`ON_CLICK` → `NODE`/`NAVIGATE`) produce `scenarios.draft.json`. Drafts are never executed as gating scenarios until a human moves them into the scenario file (owner decision 13).
 - [ ] Tier B is advisory with the same default and override as RS-6 (`reference.maxDiff` default `20`): pixel, landmark, and token findings against a design file are `info` and never change `passed`.
 - [ ] Figma access follows owner decision 9: manual export in CI; REST export only when `FIGMA_TOKEN` is set (never printed or written to artifacts); Figma/Penpot/Sketch MCP output is never read by the gate except a saved `get_variable_defs` file named in config.
 
@@ -494,8 +495,9 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 - [ ] The skill tells the agent to obey `loop.continue` and `loop.stopReason`, and to return to `loop.best.iteration` on `regression`.
 - [ ] The skill tells the agent to check whether Figma, Penpot, Sketch, WordPress, Playwright, or Chrome DevTools MCP servers are enabled and to use them only for context, never to change `passed`.
 - [ ] The skill tells the agent to show the user the copyright disclaimer before a `url` capture and never to set `reference.acknowledgeCopyright` or pass `--acknowledge-copyright` on the user's behalf.
+- [ ] The skill tells the agent to split a large migration into separate loops (one `runId` per route or small route group) instead of exceeding 5 iterations, and never to move `scenarios.draft.json` entries into the scenario file itself (a human approves them).
 - [ ] The skill tells the agent that tier B/C results are advisory: keep looping toward the similarity target, but never report the route as failed because of them.
-- [ ] A test reads the skill file and fails if any of the five playbooks, the `loop.continue` rule, the copyright-acknowledgement rule, or the advisory rule is missing.
+- [ ] A test reads the skill file and fails if any of the five playbooks, the `loop.continue` rule, the copyright-acknowledgement rule, the advisory rule, the split-loops rule, or the draft-scenario rule is missing.
 
 ---
 
@@ -563,12 +565,12 @@ All six planning questions from Issue #3 have been resolved by the owner (`@neob
 
 ### Reference-source scope (section 12)
 
-Decisions 7 and 9–12 were resolved by the owner (`@neobenjax`) on PR #12. Decisions 8 and 13 are still open; until the owner resolves them, `RS-3` and `RS-7` follow their recommendations.
+Decisions 7–13 were resolved by the owner (`@neobenjax`) on PR #12.
 
 7. **Is Milestone 2b part of v1?**  
    **Resolved:** No. The v1 Definition of Done stays as written. `RS-1`–`RS-9` ship after `SIDE-22`, except `RS-3` (loop contract), which lands right after `SIDE-20` because the skill's stop rules land there.
-8. *(Open)* **Iteration cap for heavy migrations (e.g. a whole WordPress site).**  
-   **Recommendation:** Keep the 5-iteration hard cap per `runId` for every kind (AGENTS.md §6). A large migration is split into routes, each with its own `runId`, instead of raising the cap.
+8. **Iteration cap for heavy migrations (e.g. a whole WordPress site).**  
+   **Resolved:** Keep the 5-iteration hard cap per `runId` for every kind (AGENTS.md §6). A large migration is split into separate loops (one route, or a small group of routes, per `runId`) instead of raising the cap.
 9. **Figma access method (`RS-7`).** Options: manual PNG export only; Figma REST API with a personal access token (frame export; variables need an Enterprise plan); remote Figma MCP server (OAuth, recommended by Figma); desktop Figma MCP server (needs a Dev/Full seat on a paid plan).  
    **Resolved:** Manual export is the CI path. The Figma REST API is the automated freeze path when a token exists. The Figma MCP server is agent context only. Penpot and Sketch MCP servers are treated the same way.
 10. **Tier B/C tolerances (design files and screenshots).**  
@@ -577,8 +579,8 @@ Decisions 7 and 9–12 were resolved by the owner (`@neobenjax`) on PR #12. Deci
     **Resolved:** `runtime: "playground"` by default (no Docker, fits Windows-first). The user can configure it to suit their WordPress development type: `wp-env`, or `existing` for a local or remote site. Every build approach is supported: classic, hybrid, and block themes, patterns, custom blocks, and page builders. What matters is the accuracy of the browser output, so the Gutenberg structure check is optional (`structureCheck`: `off` by default, `advisory` when enabled) and never a hard gate. The content-area comparison (`target.selector`, default `main`) stays the configurable default.
 12. **Copying third-party sites (case 4).**  
     **Resolved:** A copyright disclaimer plus an explicit acknowledgement that the user understands what copying means. The acknowledgement is required before a `url` capture (section 12.8). There is no rights field and no origin allowlist. Captured bundles stay out of git by default.
-13. *(Open)* **Prototype-link scenarios from design files (`RS-7`).**  
-    **Recommendation:** Keep them as drafts that a human promotes. Never execute them as gating scenarios automatically.
+13. **Prototype-link scenarios from design files (`RS-7`).**  
+    **Resolved:** They stay drafts that a human approves by moving them into the scenario file. They are never executed as gating scenarios automatically, and an agent never promotes them itself.
 
 ---
 
@@ -661,7 +663,7 @@ Prototype `<script>` inside post content is stripped for users without `unfilter
 - **Portable locators.** A migration changes class names and DOM shape. Parity scenarios therefore use role/name/label/text locators (`getByRole('button', { name: 'Subscribe' })`) or `data-testid`, not CSS classes. A step with a raw CSS selector is allowed but fails parity when it does not resolve on both sides (`gate3.parity-unportable-locator.<scenario-id>.<step>`).
 - **Authoring.** A human or the agent may record a flow with Playwright codegen or by driving the reference through Playwright MCP / Chrome DevTools MCP. Only the saved scenario file counts. An MCP session never sets `passed` (owner decision 3).
 - **Network behavior.** For `url`, form posts and XHRs observed in the reference HAR become optional expectations (method + path pattern), so a copy that renders a form but never submits it fails parity.
-- **Figma prototype links.** RS-7 reads node `interactions` (trigger such as `ON_CLICK`, action `NODE` with `navigation` `NAVIGATE`/`OVERLAY` to a `destinationId`) and writes `scenarios.draft.json`: "click the element mapped to layer X, expect the state to match the export of frame Y". Mapping layers to DOM elements needs a convention (`data-figma-node` or a matching accessible name). Transitions such as Smart Animate are not compared (motion is disabled). Drafts do not count until a human moves them into the scenario file.
+- **Figma prototype links.** RS-7 reads node `interactions` (trigger such as `ON_CLICK`, action `NODE` with `navigation` `NAVIGATE`/`OVERLAY` to a `destinationId`) and writes `scenarios.draft.json`: "click the element mapped to layer X, expect the state to match the export of frame Y". Mapping layers to DOM elements needs a convention (`data-figma-node` or a matching accessible name). Transitions such as Smart Animate are not compared (motion is disabled). Drafts do not count until a human moves them into the scenario file (owner decision 13); an agent never promotes them.
 
 ### 12.6 Audit loop contract and what "pixel perfect" means
 
@@ -670,7 +672,7 @@ Prototype `<script>` inside post content is stripped for users without `unfilter
 | Key | Rule |
 | --- | --- |
 | `runId` | String. |
-| `iteration` / `maxIterations` | `maxIterations` is `5` (AGENTS.md §6 hard cap). |
+| `iteration` / `maxIterations` | `maxIterations` is `5` (AGENTS.md §6 hard cap; owner decision 8). It is not configurable. A large migration is split into separate loops, each with its own `runId`. |
 | `best` | `{ iteration, mismatchPct, failCount }` of the best iteration so far (fewest `fail` findings, then lowest `mismatchPct`). |
 | `delta` | `{ mismatchPct, newFailIds, resolvedFailIds }` against the previous iteration. |
 | `stopReason` | `null` while the agent should keep going; otherwise `passed`, `max-iterations`, `no-progress`, `regression`, or `blocked`. |

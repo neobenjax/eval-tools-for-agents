@@ -309,6 +309,20 @@ CLI flags override the matching config field for a single run. A flag-only invoc
 
 Each scenario is an ordered list of steps. A step has `action` (`goto`, `click`, `fill`, `toggle`, `wait`), `selector` when it targets an element, and the URL or value it needs. The runner stops on the first failed step.
 
+### Interfaces pinned by the M2 acceptance tests
+
+These are the exact shapes `M2-AC-01` to `M2-AC-37` assert. Change them only together with the tests.
+
+- **Config run.** `pixel-gate` with no `--url` reads `pixel-gate.config.json` from the working directory (or `--config <file>`). It compares every `route x viewport` and adds `gates.gate2.checks[]` with `{ route, viewport, reference, passed, mismatchPct }`. A route with a reference at `<references>/<route-id>/<viewport-name>.png` is compared. Intake findings use `gate2.missing-reference.<route-id>.<viewport-name>`, `gate3.unmapped-acceptance.<slug>`, and `gate3.unmapped-scenario.<id>`. The slug is the lowercase heading text with runs of non `[a-z0-9]` turned into `-`. Only level 2 headings (`## `) are scenario headings, and a heading maps to a scenario when its text is exactly the scenario `id` or starts with `<id>:`.
+- **Flags.** `--url`/`--ref` keep working without a config file, and a flag overrides the matching config field for one run. `--gate3-static` runs the static scan on `--url`. `--scenario <id>` replays that scenario from the config `scenarios` file and runs only Gate 3 (`gates.gate1` and `gates.gate2` are `skipped`). `--vision-verdict <file>` is read only when `vision.enabled` is true. `--out` must stay inside the working directory's `.visual-eval/` tree.
+- **Gate 3 findings.** Static rules: `gate3.no-accessible-name.<slug>`, `gate3.dead-href.<slug>`, `gate3.covered-target.<slug>`, `gate3.no-label.<slug>`. Scenario failures: `gate3.scenario.<scenario-id>.<step-number>` (1-based) with the optional finding keys `action` and `screenshot` (a path under `.visual-eval/`). `gates.gate3.scenarios[]` lists `{ id, passed, steps: [{ action, passed }] }` for the steps that ran.
+- **Scenario steps.** `goto { url }` (relative to `baseUrl`), `click { selector }`, `fill { selector, value }`, `toggle { selector }`, `wait { ms }` or `wait { selector, state }`. Any step may carry `timeoutMs`.
+- **Vision.** When enabled the report adds `vision: { enabled, composite, findings }`, where `composite` equals `artifacts.composite` and `findings` equals the top-level `findings`. The verdict becomes the finding `gate2.vision-verdict`, severity `info`, or `fail` only when `vision.blocking` is true and the verdict says `passed: false`. A malformed verdict that was asked for is a run error.
+- **Skill.** `tools/pixel-perfect-gate/skills/pixel-perfect-gate/SKILL.md` (the directory name is the installed skill name).
+- **Installer.** `tools/pixel-perfect-gate/scripts/install.mjs [--home <dir>] [--bin-dir <dir>] [--skip-chromium] [--dry-run]`. `--dry-run` prints `{ dryRun: true, actions: [{ type: 'link-skill', agent, source, target } | { type: 'install-bin', path } | { type: 'install-chromium', version }] }`. `playwright` is pinned to an exact version in `package.json`.
+- **Harness smoke.** `tools/pixel-perfect-gate/scripts/harness-smoke.mjs --harness <antigravity-desktop|antigravity-cli|cursor|all> --home <dir> [--prompt-cmd <command>] [--recording <file>]` prints `{ ok, results: [{ harness, skillListed, skillPath, promptPassed, promptJson }], recording }`. The fixed prompt is `tools/pixel-perfect-gate/scripts/harness-smoke.prompt.txt`.
+- **CI.** `.github/workflows/ci.yml` runs the installer and a bare `pixel-gate --help` step on `ubuntu-latest` and `windows-latest`.
+
 ---
 
 ## 8. Acceptance Criteria
@@ -400,7 +414,7 @@ Depends on SIDE-20 and SIDE-25. One installer path: `tools/pixel-perfect-gate/sc
 - [ ] On Windows the installer creates a directory junction for the skill. On Unix it creates the skill link with `ln -sfn`.
 - [ ] Skill destinations: Antigravity Desktop `~/.gemini/config/skills/`, Antigravity CLI `~/.gemini/antigravity-cli/skills/`, Cursor `~/.cursor/skills/`.
 - [ ] The installer puts `pixel-gate` on `PATH` and installs the pinned Chromium.
-- [ ] The installer does not add this package to the target application's dependencies.
+- [ ] The installer does not add this package to the dependencies of the target application.
 - [ ] Re-running the installer replaces the links and leaves a working `pixel-gate --help`.
 
 ### SIDE-22 re-scope (M2)
@@ -748,9 +762,9 @@ Milestone work is driven by tests written from section 8. The product change fol
 
 ### What is enforced
 
-`ENFORCED_MILESTONES` in `tools/pixel-perfect-gate/tests/acceptance/manifest.mjs` is currently `M1` only. The family comes from the section 4 tag: `[M1.6]` is `M1`, `[M2.0a]` is `M2`, `[M2b.1]` is `M2b`. Section 8 checkboxes under an enforced family are the criteria. Checked boxes (`- [x]`) are the green suite. Unchecked boxes (`- [ ]`) are the gap suite. `- [X]` is not a checkbox.
+`ENFORCED_MILESTONES` in `tools/pixel-perfect-gate/tests/acceptance/manifest.mjs` is currently `M1` and `M2`. The family comes from the section 4 tag: `[M1.6]` is `M1`, `[M2.0a]` is `M2`, `[M2b.1]` is `M2b`. Section 8 checkboxes under an enforced family are the criteria. Checked boxes (`- [x]`) are the green suite. Unchecked boxes (`- [ ]`) are the gap suite. `- [X]` is not a checkbox.
 
-Milestone 2 tests are not written yet. Their directory is `tools/pixel-perfect-gate/tests/acceptance/m2/`. Do not add `M2` or `M2b` to `ENFORCED_MILESTONES` until each of that family's section 8 criteria has a test. Milestone 2b is not part of the M1 suite.
+Milestone 2 tests are written as a gap suite (`M2-AC-01` to `M2-AC-37`, all `*.pending.mjs` under `tools/pixel-perfect-gate/tests/acceptance/pending/`, helpers in `tools/pixel-perfect-gate/tests/acceptance/m2-helpers.mjs`). When an M2 issue is implemented, promote its tests into `tools/pixel-perfect-gate/tests/acceptance/m2/` as `*.test.mjs`, check the section 8 boxes, and flip the manifest `suite` to `pass` in the same change. Do not add `M2b` to `ENFORCED_MILESTONES` until each of that family's section 8 criteria has a test. Milestone 2b is not part of the M1 or M2 suites.
 
 ### Traceability
 

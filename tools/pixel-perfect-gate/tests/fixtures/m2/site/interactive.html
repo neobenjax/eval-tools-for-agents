@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 interactive</title>
+<style>
+  body { margin: 16px; font: 16px monospace; }
+  #modal { display: none; position: fixed; left: 100px; top: 100px; width: 360px; padding: 16px; background: #eee; border: 2px solid #333; }
+  #modal.open { display: block; }
+  #thanks { display: none; }
+  #thanks.show { display: block; }
+  #blocked { position: fixed; left: 600px; top: 20px; width: 120px; height: 40px; }
+  #shield { position: fixed; left: 590px; top: 10px; width: 140px; height: 60px; background: rgba(200, 0, 0, 0.3); }
+</style>
+<button id="open-modal" type="button">Open</button>
+<div id="modal" role="dialog" aria-label="Signup">
+  <form id="signup">
+    <label for="name">Name</label>
+    <input id="name" name="name">
+    <label for="newsletter">Newsletter</label>
+    <input id="newsletter" name="newsletter" type="checkbox">
+    <label for="digest">Digest</label>
+    <input id="digest" name="digest" type="checkbox" checked>
+    <button id="submit" type="submit">Send</button>
+  </form>
+  <p id="thanks" role="status">Thanks</p>
+</div>
+<button id="blocked" type="button">Blocked</button>
+<div id="shield"></div>
+<button id="marker" type="button">Marker</button>
+<script>
+  document.getElementById('open-modal').addEventListener('click', function () {
+    document.getElementById('modal').classList.add('open');
+  });
+  document.getElementById('signup').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var query = new URLSearchParams({
+      name: document.getElementById('name').value,
+      newsletter: document.getElementById('newsletter').checked ? '1' : '0',
+      digest: document.getElementById('digest').checked ? '1' : '0'
+    });
+    fetch('/__submit?' + query.toString());
+    document.getElementById('thanks').classList.add('show');
+  });
+  document.getElementById('blocked').addEventListener('click', function () { fetch('/__blocked-click'); });
+  document.getElementById('marker').addEventListener('click', function () { fetch('/__after-failure'); });
+</script>

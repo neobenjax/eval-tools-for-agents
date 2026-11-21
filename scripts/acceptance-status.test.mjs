@@ -27,9 +27,9 @@ function realSpec() {
   return fs.readFileSync(path.join(repoRoot, 'SPEC.md'), 'utf8');
 }
 
-test('real SPEC section 8 M1 criteria match the manifest and test files', async () => {
-  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1']);
-  const extracted = extractEnforcedCriteria(realSpec(), manifest.ENFORCED_MILESTONES);
+test('real SPEC section 8 M1 and M2 criteria match the manifest and test files', async () => {
+  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1', 'M2']);
+  const extracted = extractEnforcedCriteria(realSpec(), ['M1']);
   assert.deepEqual(extracted.errors, []);
   assert.deepEqual(
     [...new Set(extracted.criteria.map((criterion) => criterion.key))],
@@ -37,8 +37,25 @@ test('real SPEC section 8 M1 criteria match the manifest and test files', async 
   );
   assert.equal(extracted.criteria.filter((criterion) => criterion.key === 'SIDE-16').length, 8);
   assert.equal(extracted.criteria.filter((criterion) => criterion.key === 'SIDE-24').length, 7);
-  const crlf = extractEnforcedCriteria(realSpec().replace(/\n/g, '\r\n'), manifest.ENFORCED_MILESTONES);
+  const crlf = extractEnforcedCriteria(realSpec().replace(/\n/g, '\r\n'), ['M1']);
   assert.deepEqual(crlf.criteria.map((criterion) => criterion.text), extracted.criteria.map((criterion) => criterion.text));
+
+  const m2 = extractEnforcedCriteria(realSpec(), ['M2']);
+  assert.deepEqual(m2.errors, []);
+  const perIssue = {};
+  for (const criterion of m2.criteria) perIssue[criterion.key] = (perIssue[criterion.key] || 0) + 1;
+  assert.deepEqual(perIssue, {
+    'SIDE-25': 5,
+    'SIDE-26': 4,
+    'SIDE-19': 8,
+    'SIDE-27': 5,
+    'SIDE-20': 7,
+    'SIDE-21': 5,
+    'SIDE-22': 3,
+  });
+  const m2Manifest = manifest.criteria.filter((entry) => entry.milestone === 'M2');
+  assert.equal(m2Manifest.length, 37);
+  assert.deepEqual(m2Manifest.map((entry) => entry.id), m2.criteria.map((_, i) => `M2-AC-${String(i + 1).padStart(2, '0')}`));
 
   const code = await runAcceptanceStatus(['--static-only']);
   assert.equal(code, 0);

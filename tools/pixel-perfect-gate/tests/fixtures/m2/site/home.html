@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 home</title>
+<style>
+  html, body { margin: 0; background: #fff; }
+  header { height: 60px; background: #1d4ed8; }
+  main { height: 180px; background: #e2e8f0; position: relative; }
+  footer { height: 60px; background: #0f172a; }
+  #card { position: absolute; left: 20px; top: 20px; width: 120px; height: 80px; background: #f59e0b; }
+  #clock { position: absolute; right: 20px; top: 20px; width: 80px; height: 40px; }
+  @media (max-width: 300px) { #card { width: 60px; } #clock { width: 40px; } }
+</style>
+<header></header>
+<main><div id="card"></div><div id="clock"></div></main>
+<footer></footer>
+<script>
+  // Changes every load. Only a configured mask keeps this page equal to the committed PNG.
+  document.getElementById('clock').style.background =
+    'rgb(' + [0, 0, 0].map(function () { return Math.floor(Math.random() * 256); }).join(',') + ')';
+</script>

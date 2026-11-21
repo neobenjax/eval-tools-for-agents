@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 static bad</title>
+<style>
+  body { margin: 16px; font: 16px monospace; }
+  section { margin: 8px 0; }
+  .box { display: inline-block; width: 24px; height: 24px; background: #ddd; vertical-align: middle; }
+  #stage { position: relative; height: 60px; margin: 8px 0; }
+  #covered { position: absolute; left: 0; top: 10px; width: 120px; height: 40px; }
+  #overlay { position: absolute; left: 0; top: 0; width: 120px; height: 60px; background: rgba(200, 0, 0, 0.3); }
+  #edge-ok { position: absolute; left: 200px; top: 10px; width: 120px; height: 40px; }
+  #edge-overlay { position: absolute; left: 200px; top: 0; width: 20px; height: 60px; background: rgba(0, 0, 200, 0.3); }
+  #pe-none { position: absolute; left: 400px; top: 10px; width: 120px; height: 40px; }
+  #pe-overlay { position: absolute; left: 400px; top: 0; width: 120px; height: 60px; pointer-events: none; background: rgba(0, 200, 0, 0.3); }
+</style>
+<main id="main">
+  <!-- Expected gate3 hits: 4 no-accessible-name, 2 dead-href, 1 covered-target, 4 no-label = 11 -->
+  <section id="names">
+    <button id="b-icon" type="button"><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6"></circle></svg></button>
+    <div id="r-btn" class="box" role="button" tabindex="0"></div>
+    <a id="l-empty" class="box" href="/m2/site/home.html"></a>
+    <div id="r-link" class="box" role="link" tabindex="0"></div>
+    <!-- Named controls that must not be flagged -->
+    <button id="b-text" type="button">Save</button>
+    <button id="b-aria" type="button" aria-label="Close"></button>
+    <a id="a-text" href="/m2/site/about.html">About</a>
+  </section>
+  <section id="hrefs">
+    <a id="d-hash" href="#">Top</a>
+    <a id="d-empty" href="">Blank</a>
+    <!-- Real targets that must not be flagged -->
+    <a id="a-anchor" href="#main">Jump to main</a>
+    <a id="a-real" href="/m2/site/home.html">Home</a>
+  </section>
+  <div id="stage">
+    <button id="covered" type="button">Buy</button>
+    <div id="overlay"></div>
+    <button id="edge-ok" type="button">Edge</button>
+    <div id="edge-overlay"></div>
+    <button id="pe-none" type="button">Through</button>
+    <div id="pe-overlay"></div>
+  </div>
+  <form id="fields" onsubmit="return false">
+    <input id="in-bad" type="text">
+    <select id="sel-bad"><option>One</option></select>
+    <textarea id="ta-bad"></textarea>
+    <input id="in-placeholder" type="text" placeholder="Search">
+    <!-- Labelled controls that must not be flagged -->
+    <label for="in-ok">Name</label><input id="in-ok" type="text">
+    <label>Email <input id="in-wrap" type="text"></label>
+    <input id="in-aria" type="text" aria-label="Search the site">
+    <span id="lbl-city">City</span><input id="in-labelledby" type="text" aria-labelledby="lbl-city">
+    <input id="in-hidden" type="hidden" value="x">
+    <input id="in-submit" type="submit" value="Go">
+  </form>
+</main>

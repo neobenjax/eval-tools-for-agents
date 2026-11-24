@@ -14,7 +14,7 @@ node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --r
 
 ## Milestone acceptance
 
-Green tests: `tests/acceptance/*.test.mjs`. Gap tests (expected to fail until the criterion is met): `tests/acceptance/pending/*.pending.mjs`. The map is `tests/acceptance/manifest.mjs`. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. See repo `SPEC.md` section 13. Milestone 2 tests will live in `tests/acceptance/m2/` and are not written yet.
+Green tests: `tests/acceptance/*.test.mjs`. Gap tests (expected to fail until the criterion is met): `tests/acceptance/pending/*.pending.mjs`. The map is `tests/acceptance/manifest.mjs`. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. See repo `SPEC.md` section 13. Milestone 2 tests are in place as a gap suite under `tests/acceptance/pending/` (promoting to `tests/acceptance/m2/` as features land).
 
 ## Architecture
 

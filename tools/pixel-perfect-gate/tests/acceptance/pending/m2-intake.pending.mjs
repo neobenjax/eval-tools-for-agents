@@ -271,7 +271,7 @@ serialTest('M2-AC-09: The determinism checks in section 5 that need a project fi
           refs: ['font/desktop', 'network/desktop'],
           config: {
             viewports: [{ name: 'desktop', width: 400, height: 300 }],
-            maxDiff: 2,
+            maxDiff: 0.5,
             masks: [],
             routes: [
               { id: 'font', path: '/m2/site/font.html', referenceRequired: true },
@@ -307,7 +307,7 @@ serialTest('M2-AC-09 break-it: the pinned font is awaited before the capture', a
         refs: ['font/desktop'],
         config: {
           viewports: [{ name: 'desktop', width: 400, height: 300 }],
-          maxDiff: 2,
+          maxDiff: 0.5,
           masks: [],
           routes: [{ id: 'font', path: '/m2/site/font.html', referenceRequired: true }],
         },
@@ -319,7 +319,7 @@ serialTest('M2-AC-09 break-it: the pinned font is awaited before the capture', a
         server.requests.includes('/m2/site/fonts/codicon.ttf'),
         'the committed font file was requested from the fixture server'
       );
-      assert.ok(result.json.gates.gate2.checks[0].mismatchPct <= 2);
+      assert.ok(result.json.gates.gate2.checks[0].mismatchPct <= 0.5);
     },
     { delays: { '/m2/site/fonts/codicon.ttf': 600 } }
   );

@@ -9,7 +9,7 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 
 ## Development
 
-A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. Tests are written from `SPEC.md` section 8 before the product change. `node scripts/acceptance-status.mjs` lists criteria that are still gaps. Milestone 2 tests will live in `tools/pixel-perfect-gate/tests/acceptance/m2/` and are not written yet.
+A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. Tests are written from `SPEC.md` section 8 before the product change. `node scripts/acceptance-status.mjs` lists criteria that are still gaps. Milestone 2 tests are in place as a gap suite under `tools/pixel-perfect-gate/tests/acceptance/pending/` (promoting to `tools/pixel-perfect-gate/tests/acceptance/m2/` as features land).
 
 ## Quick Links
 

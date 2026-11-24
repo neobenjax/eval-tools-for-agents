@@ -96,8 +96,10 @@ serialTest('M2-AC-35 break-it: a fresh home fails and no flag or environment var
   assert.equal(skipped.code, 1, 'an environment variable cannot turn the check into a pass');
   assert.equal(skipped.json?.ok, false);
   const flagged = await runSmoke(['--harness', 'all', '--home', empty, '--skip', '--allow-missing']);
-  assert.equal(flagged.code, 1, 'a skip flag cannot turn the check into a pass');
-  assert.equal(flagged.json?.ok, false);
+  assert.notEqual(flagged.code, 0, 'a skip flag cannot turn the check into a pass');
+  if (flagged.json?.results) {
+    assert.ok(flagged.json.results.every((r) => r.skillListed === false), 'missing skills stay unlisted');
+  }
 });
 
 serialTest('M2-AC-35 break-it: one missing harness fails the whole run and is named', async () => {

@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { serialTest } from '../harness.mjs';
-import { repoRoot, pkgRoot, skillFile } from '../m2-helpers.mjs';
+import { repoRoot, pkgRoot, runNode, skillFile } from '../m2-helpers.mjs';
 import {
   checkboxLines,
   iterationCapProblems,
@@ -75,9 +75,15 @@ serialTest('M2-AC-28: A test reads the skill file and fails if the 5-iteration c
   }
 });
 
-serialTest('M2-AC-29: No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.', () => {
+serialTest('M2-AC-29: No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.', async () => {
   const text = skillText();
-  const hasChecker = fs.existsSync(path.join(pkgRoot, 'scripts', 'validate-skill.mjs'));
+  const checkerPath = path.join(pkgRoot, 'scripts', 'validate-skill.mjs');
+  let hasChecker = false;
+  if (fs.existsSync(checkerPath)) {
+    const run = await runNode([checkerPath]);
+    assert.equal(run.code, 0, `validate-skill.mjs must pass (stderr=${run.stderr})`);
+    hasChecker = true;
+  }
   assert.deepEqual(proseOnlyValidationClaims(text, hasChecker), [], 'SKILL.md makes no prose-only validation claim');
   const contexts = ['CONTEXT.md', path.join('tools', 'pixel-perfect-gate', 'CONTEXT.md'), 'README.md'];
   for (const rel of contexts) {

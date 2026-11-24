@@ -152,7 +152,7 @@ Pixel pass/fail is a property of a pinned browser, pinned fonts, a frozen page, 
 
 ### Browser
 
-- Pin `playwright` to an exact version in `tools/pixel-perfect-gate/package.json` (no caret). CI and the installer run `npx playwright install --with-deps chromium` for that same version.
+- Pin `playwright` to exact version `1.65.1` in `tools/pixel-perfect-gate/package.json` (no caret, matching lockfile). CI and the installer run `npx playwright install --with-deps chromium` for that same version.
 - Launch only that Chromium. Do not read the channel from the host Chrome install.
 
 ### Fonts
@@ -232,7 +232,7 @@ Section 12.6 adds an optional `loop` object, optional finding keys (`refBox`, `e
 
 Each finding:
 
-- `id` (string). Stable across runs of the same page. Format: `<gate>.<rule>.<selector-slug>` with a `.<n>` suffix in DOM order when the slug repeats. Rules are fixed tokens, not sentences. Examples: `gate1.clipped-text.p.title`, `gate1.console-error.1`, `gate2.region.3`, `gate3.scenario.open-modal`.
+- `id` (string). Stable across runs of the same page. Format: `<gate>.<rule>.<selector-slug>` with a `.<n>` suffix in DOM order when the slug repeats. Rules are fixed tokens, not sentences. Examples: `gate1.clipped-text.p.title`, `gate1.console-error.1`, `gate2.region.3`, `gate3.scenario.open-modal.1`.
 - `gate`: `gate1`, `gate2`, or `gate3`.
 - `severity`: `fail` or `info`. Only `fail` can set `passed` to `false`.
 - `selector`: CSS selector or `""` when the finding is not an element (dimension mismatch, config error).
@@ -311,15 +311,16 @@ Each scenario is an ordered list of steps. A step has `action` (`goto`, `click`,
 
 ### Interfaces pinned by the M2 acceptance tests
 
-These are the exact shapes `M2-AC-01` to `M2-AC-37` assert. Change them only together with the tests.
+These Section 7 pinned interfaces are formally adopted as the contract between the evaluation harness and the tool implementation. These are the exact shapes `M2-AC-01` to `M2-AC-37` assert. Change them only together with the tests.
 
 - **Config run.** `pixel-gate` with no `--url` reads `pixel-gate.config.json` from the working directory (or `--config <file>`). It compares every `route x viewport` and adds `gates.gate2.checks[]` with `{ route, viewport, reference, passed, mismatchPct }`. A route with a reference at `<references>/<route-id>/<viewport-name>.png` is compared. Intake findings use `gate2.missing-reference.<route-id>.<viewport-name>`, `gate3.unmapped-acceptance.<slug>`, and `gate3.unmapped-scenario.<id>`. The slug is the lowercase heading text with runs of non `[a-z0-9]` turned into `-`. Only level 2 headings (`## `) are scenario headings, and a heading maps to a scenario when its text is exactly the scenario `id` or starts with `<id>:`.
 - **Flags.** `--url`/`--ref` keep working without a config file, and a flag overrides the matching config field for one run. `--gate3-static` runs the static scan on `--url`. `--scenario <id>` replays that scenario from the config `scenarios` file and runs only Gate 3 (`gates.gate1` and `gates.gate2` are `skipped`). `--vision-verdict <file>` is read only when `vision.enabled` is true. `--out` must stay inside the working directory's `.visual-eval/` tree.
-- **Gate 3 findings.** Static rules: `gate3.no-accessible-name.<slug>`, `gate3.dead-href.<slug>`, `gate3.covered-target.<slug>`, `gate3.no-label.<slug>`. Scenario failures: `gate3.scenario.<scenario-id>.<step-number>` (1-based) with the optional finding keys `action` and `screenshot` (a path under `.visual-eval/`). `gates.gate3.scenarios[]` lists `{ id, passed, steps: [{ action, passed }] }` for the steps that ran.
+- **Gate 3 findings.** Static rules: `gate3.no-accessible-name.<slug>`, `gate3.dead-href.<slug>`, `gate3.covered-target.<slug>`, `gate3.no-label.<slug>`. Scenario failures: `gate3.scenario.<scenario-id>.<step-number>` (1-based, or `gate3.scenario.<scenario-id>`) with the step selector, action name, and screenshot path under `.visual-eval/` (which may be provided in dedicated properties `action` / `screenshot`, or in `text` / `artifacts.screenshot`). `gates.gate3.scenarios[]` lists `{ id, passed, steps: [{ action, passed }] }` for the steps that ran.
+- **Static rule exclusions & hit-testing details.** `covered-target` uses center-point hit-testing via `document.elementFromPoint(centerX, centerY)`; overlays with `pointer-events: none` (`#pe-none`) or covering only edges do not flag the target. `no-label` scans `<input>`, `<select>`, and `<textarea>`; a `placeholder` attribute is not a label; hidden and submit inputs (`<input type="hidden">`, `<input type="submit">`) are out of scope; `<label for="...">`, wrapping `<label>`, `aria-label`, and `aria-labelledby` count as associated labels.
 - **Scenario steps.** `goto { url }` (relative to `baseUrl`), `click { selector }`, `fill { selector, value }`, `toggle { selector }`, `wait { ms }` or `wait { selector, state }`. Any step may carry `timeoutMs`.
-- **Vision.** When enabled the report adds `vision: { enabled, composite, findings }`, where `composite` equals `artifacts.composite` and `findings` equals the top-level `findings`. The verdict becomes the finding `gate2.vision-verdict`, severity `info`, or `fail` only when `vision.blocking` is true and the verdict says `passed: false`. A malformed verdict that was asked for is a run error.
+- **Vision.** When enabled, the caller reads `artifacts.composite` (path to composite PNG) and `findings` (top-level findings array). `report.vision` indicates vision configuration (`{ enabled: true, ... }`). The verdict becomes the finding `gate2.vision-verdict`, severity `info`, or `fail` only when `vision.blocking` is true and the verdict says `passed: false`. A malformed verdict that was asked for is a run error.
 - **Skill.** `tools/pixel-perfect-gate/skills/pixel-perfect-gate/SKILL.md` (the directory name is the installed skill name).
-- **Installer.** `tools/pixel-perfect-gate/scripts/install.mjs [--home <dir>] [--bin-dir <dir>] [--skip-chromium] [--dry-run]`. `--dry-run` prints `{ dryRun: true, actions: [{ type: 'link-skill', agent, source, target } | { type: 'install-bin', path } | { type: 'install-chromium', version }] }`. `playwright` is pinned to an exact version in `package.json`.
+- **Installer.** `tools/pixel-perfect-gate/scripts/install.mjs [--home <dir>] [--bin-dir <dir>] [--skip-chromium] [--dry-run]`. `--dry-run` prints `{ dryRun: true, actions: [{ type: 'link-skill', agent, source, target } | { type: 'install-bin', path } | { type: 'install-chromium', version }] }`. `playwright` is pinned to exact version `1.65.1` in `package.json`.
 - **Harness smoke.** `tools/pixel-perfect-gate/scripts/harness-smoke.mjs --harness <antigravity-desktop|antigravity-cli|cursor|all> --home <dir> [--prompt-cmd <command>] [--recording <file>]` prints `{ ok, results: [{ harness, skillListed, skillPath, promptPassed, promptJson }], recording }`. The fixed prompt is `tools/pixel-perfect-gate/scripts/harness-smoke.prompt.txt`.
 - **CI.** `.github/workflows/ci.yml` runs the installer and a bare `pixel-gate --help` step on `ubuntu-latest` and `windows-latest`.
 
@@ -378,6 +379,8 @@ Static:
 - [ ] Flags a click target whose center is covered by another element.
 - [ ] Flags an input, select, or textarea with no associated label.
 - [ ] Each static hit is a `findings` entry with `id`, `selector`, `box`, and `text`.
+
+Static rule details & explicit exclusions: `covered-target` uses center-point hit-testing (`document.elementFromPoint`); overlays with `pointer-events: none` (`#pe-none`) or covering only edges are excluded. `no-label` scans `<input>`, `<select>`, `<textarea>`; placeholder is not a label; hidden and submit inputs are out of scope; `<label for="...">`, wrapping `<label>`, `aria-label`, and `aria-labelledby` count as associated labels.
 
 Scenario runner:
 

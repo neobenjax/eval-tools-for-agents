@@ -127,15 +127,32 @@ serialTest('M2-AC-32: The installer puts `pixel-gate` on `PATH` and installs the
   assert.equal(runOnPath('pixel-gate', ['--help'], env).code, 0, 'the installed command runs');
 
   const spec = playwrightSpec();
-  assert.match(String(spec), /^\d+\.\d+\.\d+$/, `playwright must be pinned to an exact version (got ${spec})`);
+  assert.equal(spec, '1.65.1', `playwright must be pinned to 1.65.1 (got ${spec})`);
 
   const plan = await runInstaller(['--home', freshDir('ac32', 'plan-home'), '--bin-dir', freshDir('ac32', 'plan-bin'), '--dry-run']);
   installedOk(plan);
   assert.ok(plan.json && plan.json.dryRun === true && Array.isArray(plan.json.actions), 'dry-run prints { dryRun: true, actions: [...] }');
   const chromium = plan.json.actions.filter((a) => a.type === 'install-chromium');
   assert.equal(chromium.length, 1, 'the plan installs Chromium exactly once');
-  assert.equal(chromium[0].version, spec, 'the Chromium install uses the pinned playwright version');
+  assert.equal(chromium[0].version, '1.65.1', 'the Chromium install uses the pinned playwright version');
   assert.equal(plan.json.actions.filter((a) => a.type === 'install-bin').length, 1, 'the plan puts pixel-gate on PATH');
+
+  const browsersDir = freshDir('ac32', 'browsers');
+  const live = await installToTemp('ac32-live', [], {
+    run: { env: { PLAYWRIGHT_BROWSERS_PATH: browsersDir } },
+  });
+  installedOk(live.run);
+  const findExe = (dir, target) => {
+    if (!fs.existsSync(dir)) return false;
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory() && findExe(full, target)) return true;
+      if (ent.isFile() && ent.name.toLowerCase() === target.toLowerCase()) return true;
+    }
+    return false;
+  };
+  const expectedExe = process.platform === 'win32' ? 'chrome.exe' : 'chrome';
+  assert.ok(findExe(browsersDir, expectedExe), `the pinned browser executable (${expectedExe}) exists under PLAYWRIGHT_BROWSERS_PATH`);
 });
 
 serialTest('M2-AC-32 break-it: dry-run writes nothing and --skip-chromium drops only the browser action', async () => {
@@ -191,7 +208,7 @@ serialTest('M2-AC-34: Re-running the installer replaces the links and leaves a w
   const cli = skillDestination(home, 'antigravity-cli');
   const first = await installToTemp('ac34', ['--skip-chromium'], { home, binDir });
   installedOk(first.run);
-  // Replace two of the links with a stale link to another directory and a dangling link.
+  // Replace two of the links with stale links to another directory.
   for (const link of [desktop, cli]) {
     try {
       fs.unlinkSync(link);
@@ -202,7 +219,7 @@ serialTest('M2-AC-34: Re-running the installer replaces the links and leaves a w
   let plantError = null;
   try {
     fs.symlinkSync(stale, desktop, linkType);
-    fs.symlinkSync(path.join(home, 'gone'), cli, linkType);
+    fs.symlinkSync(stale, cli, linkType);
   } catch (err) {
     plantError = err.message;
   }

@@ -1,7 +1,7 @@
 /**
  * Green suite for the milestone 1 engine criteria.
- * These asserts read the current stdout (`json.gates.gate1`, `json.gates.gate2`, `error` as a string).
- * Section 6 uses `gates.*`, `error: null` on a finished run, and a skipped-gate object.
+ * These asserts read the Section 6 stdout (`json.gates.gate1`, `json.gates.gate2`, with errors asserted via `error.message`).
+ * Section 6 uses `gates.*`, `error: null` on a finished run, and skipped-gate objects for unrun gates.
  * When a gap test is promoted, update those paths in the same commit and keep the behavioral asserts
  * (exit code, landmark id, mismatchPct, dimension text).
  */
@@ -347,6 +347,7 @@ serialTest('M1-AC-08: Reference dimensions not divisible by `--dpr` fail with a 
   assert.match(odd.json.error?.message, /101x51/);
   assert.match(odd.json.error?.message, /not divisible by --dpr 2/);
   assert.match(odd.json.gates.gate2.error, /not divisible by --dpr 2/);
+  assert.ok(odd.json.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 
   const divisible = await runCli([
     '--url', `${baseUrl}/committed-card.html`,

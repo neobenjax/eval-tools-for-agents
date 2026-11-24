@@ -14,9 +14,11 @@ import { recordTelemetry } from '../src/telemetry.mjs';
 import { buildReport } from '../src/report.mjs';
 
 const startMs = Date.now();
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 program
   .name('pixel-gate')
+  .version(pkg.version)
   .description('Single-browser Gate 1 (Layout/Runtime) + Gate 2 (Visual Diff) evaluator for AI Agent Looping.')
   .requiredOption('--url <url>', 'Target URL (e.g. http://localhost:3000)')
   .option('--ref <path>', 'Path to reference design PNG (omit for Gate 1 layout-only check)')
@@ -45,13 +47,26 @@ try {
   if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
     process.exit(0);
   }
+  let parsedIter = 1;
+  const iterOpt = program.opts()?.iteration;
+  if (iterOpt) {
+    const n = Number(iterOpt);
+    if (Number.isInteger(n) && n >= 1 && n <= 5) parsedIter = n;
+  }
+  if (parsedIter === 1) {
+    const iterIdx = process.argv.indexOf('--iteration');
+    if (iterIdx !== -1 && iterIdx + 1 < process.argv.length) {
+      const n = Number(process.argv[iterIdx + 1]);
+      if (Number.isInteger(n) && n >= 1 && n <= 5) parsedIter = n;
+    }
+  }
   const report = buildReport({
     passed: false,
-    iteration: 1,
+    iteration: parsedIter,
     durationMs: Date.now() - startMs,
     errorMessage: err?.message || String(err),
   });
-  console.log(JSON.stringify(report, null, 2));
+  fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
   process.exit(report.exitCode);
 }
 
@@ -64,24 +79,32 @@ let dpr = 1;
 let iteration = 1;
 
 function resolveExpectedLandmarks(refPath, refLandmarksPath) {
+  let targetPath = null;
   if (refLandmarksPath) {
     if (!fs.existsSync(refLandmarksPath)) {
       throw new Error(`Reference landmarks file not found: ${refLandmarksPath}`);
     }
-    return { data: JSON.parse(fs.readFileSync(refLandmarksPath, 'utf8')), found: true };
-  }
-  if (!refPath) return null;
-  const parsed = path.parse(refPath);
-  const candidates = [
-    path.join(parsed.dir, `${parsed.name}.landmarks.json`),
-    `${refPath}.landmarks.json`,
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return { data: JSON.parse(fs.readFileSync(candidate, 'utf8')), found: true };
+    targetPath = refLandmarksPath;
+  } else if (refPath) {
+    const parsed = path.parse(refPath);
+    const candidates = [
+      path.join(parsed.dir, `${parsed.name}.landmarks.json`),
+      `${refPath}.landmarks.json`,
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        targetPath = candidate;
+        break;
+      }
     }
   }
-  return null;
+  if (!targetPath) return null;
+  const content = fs.readFileSync(targetPath, 'utf8');
+  try {
+    return { data: JSON.parse(content), found: true };
+  } catch (err) {
+    throw new Error(`Invalid sidecar JSON in ${targetPath}: ${err.message}`);
+  }
 }
 
 try {
@@ -116,15 +139,56 @@ try {
   if (opts.ref) {
     refImg = readReferencePng(opts.ref);
     if (refImg.width % dpr !== 0 || refImg.height % dpr !== 0) {
+      const errorMsg = `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`;
       gate2Result = {
         passed: false,
         mode,
-        error: `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`,
+        mismatchPct: null,
+        regions: [],
+        regionCount: 0,
+        error: errorMsg,
         dimensions: `${refImg.width}x${refImg.height}`,
+        findings: [
+          {
+            id: 'gate2.dimension-mismatch',
+            gate: 'gate2',
+            severity: 'fail',
+            selector: '',
+            box: null,
+            text: errorMsg,
+          },
+        ],
       };
-      throw new Error(
-        `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`
-      );
+      const durationMs = Date.now() - startMs;
+      const report = buildReport({
+        passed: false,
+        iteration,
+        durationMs,
+        errorMessage: errorMsg,
+        gate1Result: null,
+        gate2Result,
+      });
+      const telemetryPath = recordTelemetry(opts.out, {
+        url: opts.url,
+        mode,
+        dpr,
+        iteration,
+        passed: false,
+        gate1Passed: false,
+        gate2Passed: false,
+        mismatchPct: null,
+        durationMs: report.durationMs,
+        error: errorMsg,
+        findingIds: report.findings.map((f) => f.id),
+        model: opts.model,
+        harness: opts.harness,
+      });
+      report.telemetry = telemetryPath;
+      if (telemetryPath) {
+        report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
+      }
+      fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
+      process.exit(report.exitCode);
     }
     const viewportExplicit = program.getOptionValueSource('viewport') !== 'default';
     if (!viewportExplicit) {
@@ -276,9 +340,34 @@ try {
   await browser.close();
   browser = null;
 
+  let resolvedSidecar = null;
+  if (opts.ref && refImg && mode === 'wireframe') {
+    try {
+      resolvedSidecar = resolveExpectedLandmarks(opts.ref, opts.refLandmarks);
+    } catch (err) {
+      gate2Result = {
+        passed: false,
+        skipped: false,
+        error: err.message,
+        findings: [
+          {
+            id: 'gate2.landmark.invalid-sidecar',
+            gate: 'gate2',
+            severity: 'fail',
+            selector: '',
+            box: null,
+            text: err.message,
+          },
+        ],
+        regions: [],
+        regionCount: 0,
+      };
+      throw err;
+    }
+  }
+
   gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
   if (opts.ref && refImg) {
-    const resolvedSidecar = mode === 'wireframe' ? resolveExpectedLandmarks(opts.ref, opts.refLandmarks) : null;
     gate2Result = compareVisual({
       refImg,
       actualPath,
@@ -328,7 +417,7 @@ try {
   report.telemetry = telemetryPath;
   report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
 
-  console.log(JSON.stringify(report, null, 2));
+  fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
   process.exit(report.exitCode);
 } catch (err) {
   if (browser) {
@@ -359,7 +448,7 @@ try {
       iteration: safeIter,
       passed: false,
       gate1Passed: Boolean(gate1Result?.passed),
-      gate2Passed: false,
+      gate2Passed: Boolean(gate2Result?.passed),
       mismatchPct: null,
       durationMs: failureReport.durationMs,
       error: errMsg,
@@ -374,6 +463,6 @@ try {
     failureReport.artifacts = { ...(failureReport.artifacts || {}), telemetry: telemetryPath };
   }
 
-  console.log(JSON.stringify(failureReport, null, 2));
+  fs.writeSync(1, JSON.stringify(failureReport, null, 2) + '\n');
   process.exit(failureReport.exitCode);
 }

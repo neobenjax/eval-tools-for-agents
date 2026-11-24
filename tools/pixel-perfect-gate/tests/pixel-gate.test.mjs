@@ -579,3 +579,86 @@ test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, 
     assert.match(lines[0].error, c.expectedError, `${c.name} telemetry error should match expected error substring`);
   }
 });
+
+test('pixel-gate --version exits 0 and outputs 0.1.0', async () => {
+  const { stdout } = await execFileAsync('node', [cliPath, '--version'], { encoding: 'utf8' });
+  assert.equal(stdout.trim(), '0.1.0');
+});
+
+test('fails with gate2.landmark.invalid-sidecar and gate2Passed: false when sidecar is malformed JSON', async () => {
+  const wireRef = path.join(fixturesDir, 'wireframe-base-1x.png');
+  const malformedSidecar = path.join(tmpOut, 'malformed.landmarks.json');
+  fs.writeFileSync(malformedSidecar, '{');
+  const outDir = path.join(tmpOut, 'run-wireframe-malformed-sidecar');
+
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/wireframe-base.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', malformedSidecar,
+    '--mode', 'wireframe',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.gates.gate2.passed, false);
+  assert.ok(json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+  assert.ok(json.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+
+  assert.ok(json.telemetry && fs.existsSync(json.telemetry));
+  const lines = fs.readFileSync(json.telemetry, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].gate2Passed, false);
+  assert.ok(lines[0].findingIds.includes('gate2.landmark.invalid-sidecar'));
+});
+
+test('8px Chebyshev clustering boundary merges at distance 8 and splits at distance 9', async () => {
+  const { clusterDiffRegions } = await import('../src/visual-diff.mjs');
+
+  // Width 20, Height 1, DPR 1, 8px gap.
+  // Case A: Diff at x=0 and x=8 (Chebyshev distance = 8) -> merges into 1 region
+  const diffA = new Uint8Array(20 * 1 * 4);
+  diffA[0] = 255; diffA[1] = 0; diffA[2] = 0; diffA[3] = 255;
+  const idx8 = 8 * 4;
+  diffA[idx8] = 255; diffA[idx8 + 1] = 0; diffA[idx8 + 2] = 0; diffA[idx8 + 3] = 255;
+
+  const resA = clusterDiffRegions(diffA, 20, 1, 1, 8);
+  assert.equal(resA.regionCount, 1);
+  assert.equal(resA.regions.length, 1);
+  assert.deepEqual(resA.regions[0].box, { x: 0, y: 0, width: 9, height: 1 });
+
+  // Case B: Diff at x=0 and x=9 (Chebyshev distance = 9) -> stays 2 separate regions
+  const diffB = new Uint8Array(20 * 1 * 4);
+  diffB[0] = 255; diffB[1] = 0; diffB[2] = 0; diffB[3] = 255;
+  const idx9 = 9 * 4;
+  diffB[idx9] = 255; diffB[idx9 + 1] = 0; diffB[idx9 + 2] = 0; diffB[idx9 + 3] = 255;
+
+  const resB = clusterDiffRegions(diffB, 20, 1, 1, 8);
+  assert.equal(resB.regionCount, 2);
+  assert.equal(resB.regions.length, 2);
+  assert.deepEqual(resB.regions[0].box, { x: 0, y: 0, width: 1, height: 1 });
+  assert.deepEqual(resB.regions[1].box, { x: 9, y: 0, width: 1, height: 1 });
+});
+
+test('Commander parse error records provided --iteration in the report', async () => {
+  const { code, json } = await runCli([
+    '--iteration', '3',
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.iteration, 3);
+  assert.match(json.error?.message, /--url/);
+});
+
+test('landmark finding id suffix 1-based indexing: index 0 omits suffix, index 1 uses .2', async () => {
+  const { compareWireframeLandmarks } = await import('../src/visual-diff.mjs');
+  const exp0 = { selector: 'header', index: 0, x: 0, y: 0, width: 100, height: 50 };
+  const exp1 = { selector: 'header', index: 1, x: 0, y: 60, width: 100, height: 50 };
+  const act0 = { selector: 'header', index: 0, x: 10, y: 0, width: 100, height: 50 };
+  const act1 = { selector: 'header', index: 1, x: 10, y: 60, width: 100, height: 50 };
+
+  const result = compareWireframeLandmarks([act0, act1], [exp0, exp1], 4, true);
+  assert.equal(result.passed, false);
+  assert.equal(result.findings.length, 2);
+  assert.equal(result.findings[0].id, 'gate2.landmark.header');
+  assert.equal(result.findings[1].id, 'gate2.landmark.header.2');
+});

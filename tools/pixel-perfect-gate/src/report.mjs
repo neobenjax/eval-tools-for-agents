@@ -142,12 +142,12 @@ export function buildReport({
     findings,
     gates: {
       gate1: gate1Result || {
-        passed: !errorMessage,
+        passed: true,
         skipped: true,
         reason: errorMessage || 'Gate 1 did not run',
       },
       gate2: gate2Result || {
-        passed: !errorMessage,
+        passed: true,
         skipped: true,
         reason: errorMessage || 'Gate 2 did not run',
       },

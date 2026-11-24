@@ -193,6 +193,8 @@ export function compareVisual({
       passed: lmResult.passed,
       mode: 'wireframe',
       mismatchPct: null,
+      regions: [],
+      regionCount: 0,
       dimensions: `${actualImg.width}x${actualImg.height}`,
       landmarks: lmResult.actualLandmarks,
       findings: lmResult.findings,

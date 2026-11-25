@@ -1,7 +1,7 @@
 /**
  * Green suite for the milestone 1 engine criteria.
- * These asserts read the current stdout (`json.gate1`, `json.gate2`, `error` as a string).
- * Section 6 uses `gates.*`, `error: null` on a finished run, and a skipped-gate object.
+ * These asserts read the Section 6 stdout (`json.gates.gate1`, `json.gates.gate2`, with errors asserted via `error.message`).
+ * Section 6 uses `gates.*`, `error: null` on a finished run, and skipped-gate objects for unrun gates.
  * When a gap test is promoted, update those paths in the same commit and keep the behavioral asserts
  * (exit code, landmark id, mismatchPct, dimension text).
  */
@@ -53,9 +53,9 @@ serialTest('M1-AC-01: Wireframe mode fails when a landmark box (`header`, `nav`,
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.equal(run.json.gate2.passed, false);
-  assert.equal(run.json.gate2.mode, 'wireframe');
-  assert.ok(run.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.main'));
+  assert.equal(run.json.gates.gate2.passed, false);
+  assert.equal(run.json.gates.gate2.mode, 'wireframe');
+  assert.ok(run.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.landmark.main'));
 });
 
 function sidecarWithMainDelta(axis, delta) {
@@ -81,7 +81,7 @@ serialTest('M1-AC-01 break-it: a sidecar whose only delta is width 5 CSS px fail
   const run = await mainDeltaRun('width');
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  const finding = run.json.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
+  const finding = run.json.gates.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
   assert.ok(finding);
   assert.ok(finding.text.includes('dx=0, dy=0, dw=5, dh=0'), finding.text);
 });
@@ -90,7 +90,7 @@ serialTest('M1-AC-01 break-it: a sidecar whose only delta is height 5 CSS px fai
   const run = await mainDeltaRun('height');
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  const finding = run.json.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
+  const finding = run.json.gates.gate2.findings.find((item) => item.id === 'gate2.landmark.main');
   assert.ok(finding);
   assert.ok(finding.text.includes('dx=0, dy=0, dw=0, dh=5'), finding.text);
 });
@@ -104,8 +104,8 @@ serialTest('M1-AC-01 break-it: shift of exactly 4 CSS px stays within tolerance'
   ]);
   assert.equal(run.code, 0);
   assert.equal(run.json.passed, true);
-  assert.equal(run.json.gate2.passed, true);
-  assert.equal(run.json.gate2.findings.length, 0);
+  assert.equal(run.json.gates.gate2.passed, true);
+  assert.equal(run.json.gates.gate2.findings.length, 0);
 });
 
 serialTest('M1-AC-01 break-it: null coordinate in the landmarks sidecar fails closed', async () => {
@@ -119,8 +119,8 @@ serialTest('M1-AC-01 break-it: null coordinate in the landmarks sidecar fails cl
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.equal(run.json.gate2.passed, false);
-  assert.ok(run.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.header'));
+  assert.equal(run.json.gates.gate2.passed, false);
+  assert.ok(run.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.landmark.header'));
 });
 
 serialTest('M1-AC-01 break-it: empty landmarks sidecar fails closed', async () => {
@@ -133,8 +133,8 @@ serialTest('M1-AC-01 break-it: empty landmarks sidecar fails closed', async () =
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.equal(run.json.gate2.passed, false);
-  assert.ok(run.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.invalid-sidecar'));
+  assert.equal(run.json.gates.gate2.passed, false);
+  assert.ok(run.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.landmark.invalid-sidecar'));
 });
 
 serialTest('M1-AC-01 break-it: missing landmarks sidecar fails closed', async () => {
@@ -148,8 +148,11 @@ serialTest('M1-AC-01 break-it: missing landmarks sidecar fails closed', async ()
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.match(run.json.error, /Reference landmarks file not found/);
-  assert.match(run.json.error, /ac01-missing\.landmarks\.json/);
+  assert.equal(run.json.gates.gate2.passed, true);
+  assert.equal(run.json.gates.gate2.skipped, true);
+  assert.equal(run.json.findings.some((finding) => finding.id === 'gate2.landmark.invalid-sidecar'), false);
+  assert.match(run.json.error?.message, /Reference landmarks file not found/);
+  assert.match(run.json.error?.message, /ac01-missing\.landmarks\.json/);
 });
 
 serialTest('M1-AC-01 break-it: landmark missing from the page fails closed', async () => {
@@ -166,8 +169,8 @@ serialTest('M1-AC-01 break-it: landmark missing from the page fails closed', asy
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.equal(run.json.gate2.passed, false);
-  assert.ok(run.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.aside'));
+  assert.equal(run.json.gates.gate2.passed, false);
+  assert.ok(run.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.landmark.aside'));
 });
 
 serialTest('M1-AC-02: A color-only change (same boxes, different paint) stays passing in wireframe mode.', async () => {
@@ -182,8 +185,12 @@ serialTest('M1-AC-02: A color-only change (same boxes, different paint) stays pa
   ]);
   assert.equal(passRun.code, 0);
   assert.equal(passRun.json.passed, true);
-  assert.equal(passRun.json.gate2.mode, 'wireframe');
-  assert.equal(passRun.json.gate2.findings.length, 0);
+  assert.equal(passRun.json.gates.gate2.mode, 'wireframe');
+  assert.equal(Object.prototype.hasOwnProperty.call(passRun.json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(passRun.json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(passRun.json.gates.gate2.regions, []);
+  assert.equal(passRun.json.gates.gate2.regionCount, 0);
+  assert.equal(passRun.json.gates.gate2.findings.length, 0);
 
   const shifted = JSON.parse(fs.readFileSync(wireLandmarks, 'utf8'));
   const main = shifted.find((landmark) => landmark.selector === 'main');
@@ -198,8 +205,8 @@ serialTest('M1-AC-02: A color-only change (same boxes, different paint) stays pa
     '--out', path.join(tmpOut, 'ac02-mutated'),
   ]);
   assert.equal(failRun.code, 1);
-  assert.equal(failRun.json.gate2.passed, false);
-  assert.ok(failRun.json.gate2.findings.some((finding) => finding.id === 'gate2.landmark.main'));
+  assert.equal(failRun.json.gates.gate2.passed, false);
+  assert.ok(failRun.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.landmark.main'));
 });
 
 serialTest('M1-AC-03: At least one test compares against a PNG committed under `tools/pixel-perfect-gate/tests/fixtures/`, not a screenshot captured in that test.', async () => {
@@ -211,8 +218,8 @@ serialTest('M1-AC-03: At least one test compares against a PNG committed under `
   ]);
   assert.equal(run.code, 0);
   assert.equal(run.json.passed, true);
-  assert.equal(run.json.gate2.mismatchPct, 0);
-  assert.equal(path.resolve(run.json.gate2.artifacts.reference), path.resolve(ref));
+  assert.equal(run.json.gates.gate2.mismatchPct, 0);
+  assert.equal(path.resolve(run.json.gates.gate2.artifacts.reference), path.resolve(ref));
 });
 
 serialTest('M1-AC-04: A mask fixture shows a changing region under the mask stays inside `--max-diff`, and the same change outside the mask fails. *(Covered in PR #2)*', async () => {
@@ -237,11 +244,11 @@ serialTest('M1-AC-04: A mask fixture shows a changing region under the mask stay
     '--out', path.join(tmpOut, 'ac04-masked'),
   ]);
   assert.equal(masked.code, 0);
-  assert.equal(masked.json.gate2.mismatchPct, 0);
+  assert.equal(masked.json.gates.gate2.mismatchPct, 0);
 
-  const actual = PNG.sync.read(fs.readFileSync(masked.json.gate2.artifacts.actual));
-  const diff = PNG.sync.read(fs.readFileSync(masked.json.gate2.artifacts.diff));
-  const composite = PNG.sync.read(fs.readFileSync(masked.json.gate2.artifacts.composite));
+  const actual = PNG.sync.read(fs.readFileSync(masked.json.gates.gate2.artifacts.actual));
+  const diff = PNG.sync.read(fs.readFileSync(masked.json.gates.gate2.artifacts.diff));
+  const composite = PNG.sync.read(fs.readFileSync(masked.json.gates.gate2.artifacts.composite));
   const x = Math.min(actual.width - 1, Math.max(0, Math.round(dynBox.x + dynBox.width / 2)));
   const y = Math.min(actual.height - 1, Math.max(0, Math.round(dynBox.y + dynBox.height / 2)));
   const actualPx = actual.data.slice((y * actual.width + x) * 4, (y * actual.width + x) * 4 + 4);
@@ -257,7 +264,7 @@ serialTest('M1-AC-04: A mask fixture shows a changing region under the mask stay
     '--out', path.join(tmpOut, 'ac04-unmasked'),
   ]);
   assert.equal(unmasked.code, 1);
-  assert.ok(unmasked.json.gate2.mismatchPct > 0);
+  assert.ok(unmasked.json.gates.gate2.mismatchPct > 0);
 
   const outside = await runCli([
     '--url', `${baseUrl}/dynamic-masked-outside.html`,
@@ -267,7 +274,7 @@ serialTest('M1-AC-04: A mask fixture shows a changing region under the mask stay
   ]);
   assert.equal(outside.code, 1);
   assert.equal(outside.json.passed, false);
-  assert.ok(outside.json.gate2.mismatchPct > 0);
+  assert.ok(outside.json.gates.gate2.mismatchPct > 0);
 });
 
 serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page reference and fails on a height mismatch.', async () => {
@@ -281,8 +288,8 @@ serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page referen
   ]);
   assert.equal(passRun.code, 0);
   assert.equal(passRun.json.passed, true);
-  assert.equal(passRun.json.gate2.dimensions, '480x420');
-  assert.equal(passRun.json.gate2.mismatchPct, 0);
+  assert.equal(passRun.json.gates.gate2.dimensions, '480x420');
+  assert.equal(passRun.json.gates.gate2.mismatchPct, 0);
 
   const failRun = await runCli([
     '--url', `${baseUrl}/fullpage-height-mismatch.html`,
@@ -293,8 +300,9 @@ serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page referen
   ]);
   assert.equal(failRun.code, 1);
   assert.equal(failRun.json.passed, false);
-  assert.equal(failRun.json.gate2.passed, false);
-  assert.match(failRun.json.gate2.error, /Dimension mismatch/);
+  assert.equal(failRun.json.gates.gate2.passed, false);
+  assert.match(failRun.json.gates.gate2.error, /Dimension mismatch/);
+  assert.ok(failRun.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 
   const tallerRef = tracked('tools/pixel-perfect-gate/tests/fixtures/committed-fullpage-1px-taller-1x.png');
   const onePx = await runCli([
@@ -305,8 +313,9 @@ serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page referen
     '--out', path.join(tmpOut, 'ac05-one-px'),
   ]);
   assert.equal(onePx.code, 1);
-  assert.equal(onePx.json.gate2.passed, false);
-  assert.match(onePx.json.gate2.error, /Dimension mismatch/);
+  assert.equal(onePx.json.gates.gate2.passed, false);
+  assert.match(onePx.json.gates.gate2.error, /Dimension mismatch/);
+  assert.ok(onePx.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 });
 
 serialTest('M1-AC-06: A fixture covers clipped text. *(Covered in PR #2)*', async () => {
@@ -316,8 +325,8 @@ serialTest('M1-AC-06: A fixture covers clipped text. *(Covered in PR #2)*', asyn
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
-  assert.equal(run.json.gate1.passed, false);
-  assert.ok(run.json.gate1.clippedTextElements.length >= 1);
+  assert.equal(run.json.gates.gate1.passed, false);
+  assert.ok(run.json.gates.gate1.clippedTextElements.length >= 1);
 });
 
 serialTest('M1-AC-07: A fixture covers a `console.error`. *(Covered in PR #2)*', async () => {
@@ -326,9 +335,9 @@ serialTest('M1-AC-07: A fixture covers a `console.error`. *(Covered in PR #2)*',
     '--out', path.join(tmpOut, 'ac06-clipped'),
   ]);
   assert.equal(run.code, 1);
-  assert.equal(run.json.gate1.passed, false);
-  assert.ok(run.json.gate1.consoleErrors.length >= 1);
-  assert.ok(run.json.gate1.consoleErrors.some((entry) => entry.type === 'console.error' || entry.type === 'pageerror'));
+  assert.equal(run.json.gates.gate1.passed, false);
+  assert.ok(run.json.gates.gate1.consoleErrors.length >= 1);
+  assert.ok(run.json.gates.gate1.consoleErrors.some((entry) => entry.type === 'console.error' || entry.type === 'pageerror'));
 });
 
 serialTest('M1-AC-08: Reference dimensions not divisible by `--dpr` fail with a dimension finding and do not round the viewport.', async () => {
@@ -342,11 +351,17 @@ serialTest('M1-AC-08: Reference dimensions not divisible by `--dpr` fail with a 
   ]);
   assert.equal(odd.code, 1);
   assert.equal(odd.json.passed, false);
-  assert.equal(odd.json.gate1, null);
-  assert.equal(odd.json.gate2.passed, false);
-  assert.match(odd.json.error, /101x51/);
-  assert.match(odd.json.error, /not divisible by --dpr 2/);
-  assert.match(odd.json.gate2.error, /not divisible by --dpr 2/);
+  assert.equal(odd.json.gates.gate1.passed, true);
+  assert.equal(odd.json.gates.gate1.skipped, true);
+  assert.equal(odd.json.gates.gate2.passed, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(odd.json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(odd.json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(odd.json.gates.gate2.regions, []);
+  assert.equal(odd.json.gates.gate2.regionCount, 0);
+  assert.match(odd.json.error?.message, /101x51/);
+  assert.match(odd.json.error?.message, /not divisible by --dpr 2/);
+  assert.match(odd.json.gates.gate2.error, /not divisible by --dpr 2/);
+  assert.ok(odd.json.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 
   const divisible = await runCli([
     '--url', `${baseUrl}/committed-card.html`,
@@ -356,8 +371,8 @@ serialTest('M1-AC-08: Reference dimensions not divisible by `--dpr` fail with a 
   ]);
   assert.equal(divisible.code, 0);
   assert.equal(divisible.json.passed, true);
-  assert.equal(divisible.json.gate2.mismatchPct, 0);
-  assert.equal(typeof divisible.json.gate1, 'object');
-  assert.notEqual(divisible.json.gate1, null);
-  assert.equal(divisible.json.error, undefined);
+  assert.equal(divisible.json.gates.gate2.mismatchPct, 0);
+  assert.equal(typeof divisible.json.gates.gate1, 'object');
+  assert.notEqual(divisible.json.gates.gate1, null);
+  assert.equal(divisible.json.error, null);
 });

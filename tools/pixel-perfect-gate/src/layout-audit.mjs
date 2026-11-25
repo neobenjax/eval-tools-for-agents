@@ -44,12 +44,23 @@ export async function runLayoutAudit(page) {
       brokenImages: [],
     };
 
+    const toBox = (el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.round(r.x),
+        y: Math.round(r.y),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+      };
+    };
+
     const docWidth = document.documentElement.scrollWidth;
     const winWidth = window.innerWidth;
     if (docWidth > winWidth) {
       issues.horizontalOverflow = true;
       issues.overflowingElements.push({
         selector: 'html',
+        box: toBox(document.documentElement),
         scrollWidth: docWidth,
         clientWidth: winWidth,
       });
@@ -84,6 +95,7 @@ export async function runLayoutAudit(page) {
       if (rect.right > winWidth + 1 && style.position !== 'fixed') {
         issues.overflowingElements.push({
           selector: describe(el),
+          box: toBox(el),
           rightEdge: Math.round(rect.right),
           viewportWidth: winWidth,
         });
@@ -106,6 +118,7 @@ export async function runLayoutAudit(page) {
         if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 2) {
           issues.clippedTextElements.push({
             selector: describe(el),
+            box: toBox(el),
             textPreview: el.textContent.trim().slice(0, 40),
             scrollSize: `${el.scrollWidth}x${el.scrollHeight}`,
             clientSize: `${el.clientWidth}x${el.clientHeight}`,
@@ -131,6 +144,8 @@ export async function runLayoutAudit(page) {
           const overlapY = Math.max(0, Math.min(r1.bottom, r2.bottom) - Math.max(r1.top, r2.top));
           if (overlapX > 2 && overlapY > 2) {
             issues.overlappingSiblings.push({
+              selector: describe(children[i]),
+              box: toBox(children[i]),
               parent: describe(parent),
               elA: describe(children[i]),
               elB: describe(children[j]),
@@ -144,6 +159,8 @@ export async function runLayoutAudit(page) {
     for (const img of document.querySelectorAll('img')) {
       if (!img.complete || img.naturalWidth === 0) {
         issues.brokenImages.push({
+          selector: describe(img),
+          box: toBox(img),
           src: img.getAttribute('src') || '(no src)',
           alt: img.alt || '',
         });

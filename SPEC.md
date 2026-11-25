@@ -23,9 +23,9 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 - Gate 1 (`src/layout-audit.mjs`): horizontal overflow, clipped text, sibling overlap (`data-allow-overlap` and negative-margin opt-out), broken images, `console.error` / `pageerror`, HTTP status `>= 400`, and failed requests.
 - Gate 2 (`src/visual-diff.mjs`): `pixelmatch`, `--dpr`, `--mask`, `--full-page`, `--selector`, 3-panel `Reference | Actual | Diff` composite. `--mode wireframe` writes a 2-panel composite, skips `pixelmatch`, and evaluates landmark bounding boxes (`header,nav,main,footer` or custom `--landmarks`) against an expected sidecar or `--ref-landmarks` with `<= 4` CSS px tolerance, failing on shifts > 4px or missing landmarks.
 - Telemetry (`src/telemetry.mjs`): append-only `.visual-eval/telemetry.jsonl` with `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`.
-- Stdout today is one JSON object: `passed`, `iteration`, `durationMs`, `gate1`, `gate2`, `telemetry`. Exit `0` when both gates pass, exit `1` when they do not. All runtime and engine failures in `bin/pixel-gate.mjs` are caught and print `{ passed: false, error, ... }` with telemetry; Commander option-parsing failures before the `try` block exit via Commander without JSON.
+- Stdout today is one JSON object: `schemaVersion`, `passed`, `exitCode`, `iteration`, `durationMs`, `error`, `findings`, `gates`, `artifacts`, `telemetry`. Exit `0` when all gates pass, exit `1` when they do not. All runtime and engine failures in `bin/pixel-gate.mjs` are caught and print the Section 6 JSON report with telemetry. Commander option-parsing failures print the Section 6 JSON envelope, and `--help` and `--version` are the remaining non-JSON exits.
 - Animations, transitions, and the caret are forced to zero duration before capture. The run waits on `document.fonts.ready`.
-- Tests (15/15 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`.
+- Tests (20/20 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`.
 
 That engine is the core. It is not yet the product above. Nothing in PR #2 ingests a project's routes or acceptance list, runs a user flow, installs a global CLI for an arbitrary repo, or defines the Section 6 report an agent must read.
 
@@ -203,7 +203,7 @@ Pixel pass/fail is a property of a pinned browser, pinned fonts, a frozen page, 
 
 ## 6. Agent Report Contract
 
-Every process exit prints exactly one JSON object on stdout, then exits. This includes gate failures, a missing reference, a bad config, and a browser launch error. Stderr may repeat a short message. Stderr is not a substitute for the object. No log lines share stdout with the JSON.
+Every process exit prints exactly one JSON object on stdout, then exits (`--help` and `--version` are the only non-JSON human exits, matching §1 and §10). This includes gate failures, a missing reference, a bad config, and a browser launch error. Stderr may repeat a short message. Stderr is not a substitute for the object. No log lines share stdout with the JSON.
 
 SIDE-20 and SIDE-23 read this object. They do not scrape free text.
 
@@ -330,13 +330,13 @@ PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, c
 
 ### SIDE-24 report schema (`M1.6`)
 
-- [ ] Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.
-- [ ] Each Gate 1 element finding includes `selector`, `box`, and short `text`.
-- [ ] Gate 2 includes `mismatchPct` and clustered `regions` with boxes, capped at 20, plus `regionCount`.
-- [ ] Finding `id` values for the broken-layout fixture are identical across two runs.
-- [ ] Exit `0` on pass and exit `1` on fail, matching `exitCode`.
-- [ ] A fixture asserts the required keys.
-- [ ] `.visual-eval/telemetry.jsonl` gains `schemaVersion` and the finding ids for that run, and keeps the PR #2 fields (`iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, `harness`).
+- [x] Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.
+- [x] Each Gate 1 element finding includes `selector`, `box`, and short `text`.
+- [x] Gate 2 includes `mismatchPct` and clustered `regions` with boxes, capped at 20, plus `regionCount`.
+- [x] Finding `id` values for the broken-layout fixture are identical across two runs.
+- [x] Exit `0` on pass and exit `1` on fail, matching `exitCode`.
+- [x] A fixture asserts the required keys.
+- [x] `.visual-eval/telemetry.jsonl` gains `schemaVersion` and the finding ids for that run, and keeps the PR #2 fields (`iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, `harness`).
 
 ### SIDE-25 per-project config and global CLI (`M2.0a`)
 
@@ -542,8 +542,8 @@ Tracked so later issues extend the engine instead of replacing it. The per-case 
 | Gate 1 overflow, overlap, broken images, HTTP `>= 400`, clipped text, console error | Yes, with tests | — |
 | Gate 2 pixelmatch, `@2x`, composite, `--selector`, `--mask` | Yes, with tests. Committed PNGs and the 1px full-page height mismatch closed in SIDE-16 | — |
 | Wireframe | Flag only in PR #2; landmark checks (<=4px tolerance, sidecar discovery, missing/shifted) closed in SIDE-16 | — |
-| Telemetry JSONL | Yes | Add `schemaVersion` and finding ids (SIDE-24) |
-| Stdout JSON | `{passed, gate1, gate2, telemetry}` + error JSON | Section 6 envelope (SIDE-24) |
+| Telemetry JSONL | Yes | `schemaVersion`, `findingIds`, `gate1Passed`, `gate2Passed` closed in SIDE-24 |
+| Stdout JSON | Section 6 envelope (`schemaVersion: 1`, `gates.*`, `findings`, `artifacts`) closed in SIDE-24 | `--help` and `--version` remain non-JSON human exits |
 | Animations off, `document.fonts.ready` | Yes | Pinned font file and committed reference (section 5, SIDE-26) |
 | Network fail-closed | No | Section 5, exercised in SIDE-26 |
 | Global CLI and project config | Bin field only; docs use a repo-local path | SIDE-25 |
@@ -606,7 +606,7 @@ Added before M2 starts, so M2 work does not lock in a PNG-only design. Owner req
 | 3 | Screenshot of a site → any output | A PNG reference is the native input. Wireframe mode exists. | No intake for an image of unknown viewport/DPR, browser chrome, or lossy JPEG. A full-page screenshot whose height differs from the target trips the `--full-page` exact-height rule, with no declared way to compare only the top region. No landmark sidecar without a DOM. No honest tolerance: the plan's single `maxDiff` 0.5% is not reachable against a foreign renderer. | **Partially covered** (works only if the screenshot happens to be a same-engine PNG at an exact viewport) |
 | 4 | Live URL to copy (design + functionality) | Nothing beyond `--url` for the *result*. Network allowlist planned (section 5). | No URL reference capture/freeze, no drift handling (live pages change between iterations), no cookie-banner/ads/lazy-load normalization, no HAR capture of the reference's behavior, no parity scenarios, no copyright disclaimer or acknowledgement. | **Not covered** |
 | 5 | Figma (or Penpot, Sketch, XD export) → prototype/PWA/site | `--dpr 2` for `@2x` exports. Owner decision 6: exported PNGs only in v1. | No frame-to-route/viewport map, no token/style comparison, no landmark sidecar from layer geometry, no prototype-link → scenario derivation, no tolerance tier for design-tool rasterization, no MCP/REST access path. | **Partially covered** (static PNG export only) |
-| all | Loop until pixel-perfect | 5-iteration cap (AGENTS.md §6, SIDE-20), `iteration` in telemetry, findings schema planned (SIDE-24). | No run identity across iterations, no stop rule other than the cap (no no-progress or regression detection), no "best iteration" record, no definition of "pixel perfect" per reference kind. | **Partially covered** |
+| all | Loop until pixel-perfect | 5-iteration cap (AGENTS.md §6, SIDE-20), `iteration` in telemetry, findings schema closed in SIDE-24. | No run identity across iterations, no stop rule other than the cap (no no-progress or regression detection), no "best iteration" record, no definition of "pixel perfect" per reference kind. | **Partially covered** |
 
 **Bottom line.** Before this revision the plan targeted one input: a human-made PNG plus a hand-written scenario, checked against one running URL. Cases 1–3 and 5 were reachable only by manual exporting and without functional parity. Case 4 was not covered. Sections 12.2–12.8 and rows `SIDE-28`–`SIDE-36` close those gaps.
 

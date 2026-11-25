@@ -11,9 +11,14 @@ import { program } from 'commander';
 import { attachRuntimeListeners, runLayoutAudit } from '../src/layout-audit.mjs';
 import { readReferencePng, compareVisual, cropPng } from '../src/visual-diff.mjs';
 import { recordTelemetry } from '../src/telemetry.mjs';
+import { buildReport } from '../src/report.mjs';
+
+const startMs = Date.now();
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 program
   .name('pixel-gate')
+  .version(pkg.version)
   .description('Single-browser Gate 1 (Layout/Runtime) + Gate 2 (Visual Diff) evaluator for AI Agent Looping.')
   .requiredOption('--url <url>', 'Target URL (e.g. http://localhost:3000)')
   .option('--ref <path>', 'Path to reference design PNG (omit for Gate 1 layout-only check)')
@@ -32,10 +37,39 @@ program
   .option('--iteration <number>', 'Current Agent Loop iteration (1-5)', '1')
   .option('--model <name>', 'Optional AI model identifier for telemetry', 'unknown')
   .option('--harness <name>', 'Optional harness identifier (antigravity|cursor|cli)', 'cli')
-  .parse();
+  .exitOverride();
 
-const opts = program.opts();
-const startMs = Date.now();
+let opts = {};
+try {
+  program.parse();
+  opts = program.opts();
+} catch (err) {
+  if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
+    process.exit(0);
+  }
+  let parsedIter = 1;
+  const iterOpt = program.opts()?.iteration;
+  if (iterOpt) {
+    const n = Number(iterOpt);
+    if (Number.isInteger(n) && n >= 1 && n <= 5) parsedIter = n;
+  }
+  if (parsedIter === 1) {
+    const iterIdx = process.argv.indexOf('--iteration');
+    if (iterIdx !== -1 && iterIdx + 1 < process.argv.length) {
+      const n = Number(process.argv[iterIdx + 1]);
+      if (Number.isInteger(n) && n >= 1 && n <= 5) parsedIter = n;
+    }
+  }
+  const report = buildReport({
+    passed: false,
+    iteration: parsedIter,
+    durationMs: Date.now() - startMs,
+    errorMessage: err?.message || String(err),
+  });
+  fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
+  process.exit(report.exitCode);
+}
+
 const mode = opts.mode === 'wireframe' ? 'wireframe' : 'pixel';
 
 let browser = null;
@@ -45,24 +79,34 @@ let dpr = 1;
 let iteration = 1;
 
 function resolveExpectedLandmarks(refPath, refLandmarksPath) {
+  let targetPath = null;
   if (refLandmarksPath) {
     if (!fs.existsSync(refLandmarksPath)) {
       throw new Error(`Reference landmarks file not found: ${refLandmarksPath}`);
     }
-    return { data: JSON.parse(fs.readFileSync(refLandmarksPath, 'utf8')), found: true };
-  }
-  if (!refPath) return null;
-  const parsed = path.parse(refPath);
-  const candidates = [
-    path.join(parsed.dir, `${parsed.name}.landmarks.json`),
-    `${refPath}.landmarks.json`,
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return { data: JSON.parse(fs.readFileSync(candidate, 'utf8')), found: true };
+    targetPath = refLandmarksPath;
+  } else if (refPath) {
+    const parsed = path.parse(refPath);
+    const candidates = [
+      path.join(parsed.dir, `${parsed.name}.landmarks.json`),
+      `${refPath}.landmarks.json`,
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        targetPath = candidate;
+        break;
+      }
     }
   }
-  return null;
+  if (!targetPath) return null;
+  const content = fs.readFileSync(targetPath, 'utf8');
+  try {
+    return { data: JSON.parse(content), found: true };
+  } catch (err) {
+    const sidecarErr = new Error(`Invalid sidecar JSON in ${targetPath}: ${err.message}`);
+    sidecarErr.code = 'INVALID_SIDECAR_JSON';
+    throw sidecarErr;
+  }
 }
 
 try {
@@ -97,15 +141,56 @@ try {
   if (opts.ref) {
     refImg = readReferencePng(opts.ref);
     if (refImg.width % dpr !== 0 || refImg.height % dpr !== 0) {
+      const errorMsg = `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`;
       gate2Result = {
         passed: false,
         mode,
-        error: `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`,
+        mismatchPct: null,
+        regions: [],
+        regionCount: 0,
+        error: errorMsg,
         dimensions: `${refImg.width}x${refImg.height}`,
+        findings: [
+          {
+            id: 'gate2.dimension-mismatch',
+            gate: 'gate2',
+            severity: 'fail',
+            selector: '',
+            box: null,
+            text: errorMsg,
+          },
+        ],
       };
-      throw new Error(
-        `Dimension finding: Reference dimensions ${refImg.width}x${refImg.height} are not divisible by --dpr ${dpr}.`
-      );
+      const durationMs = Date.now() - startMs;
+      const report = buildReport({
+        passed: false,
+        iteration,
+        durationMs,
+        errorMessage: errorMsg,
+        gate1Result: null,
+        gate2Result,
+      });
+      const telemetryPath = recordTelemetry(opts.out, {
+        url: opts.url,
+        mode,
+        dpr,
+        iteration,
+        passed: false,
+        gate1Passed: Boolean(report.gates.gate1?.passed),
+        gate2Passed: Boolean(report.gates.gate2?.passed),
+        mismatchPct: null,
+        durationMs: report.durationMs,
+        error: errorMsg,
+        findingIds: report.findings.map((f) => f.id),
+        model: opts.model,
+        harness: opts.harness,
+      });
+      report.telemetry = telemetryPath;
+      if (telemetryPath) {
+        report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
+      }
+      fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
+      process.exit(report.exitCode);
     }
     const viewportExplicit = program.getOptionValueSource('viewport') !== 'default';
     if (!viewportExplicit) {
@@ -257,9 +342,38 @@ try {
   await browser.close();
   browser = null;
 
+  let resolvedSidecar = null;
+  if (opts.ref && refImg && mode === 'wireframe') {
+    try {
+      resolvedSidecar = resolveExpectedLandmarks(opts.ref, opts.refLandmarks);
+    } catch (err) {
+      if (err?.code === 'INVALID_SIDECAR_JSON') {
+        gate2Result = {
+          passed: false,
+          skipped: false,
+          mode: 'wireframe',
+          mismatchPct: null,
+          error: err.message,
+          findings: [
+            {
+              id: 'gate2.landmark.invalid-sidecar',
+              gate: 'gate2',
+              severity: 'fail',
+              selector: '',
+              box: null,
+              text: err.message,
+            },
+          ],
+          regions: [],
+          regionCount: 0,
+        };
+      }
+      throw err;
+    }
+  }
+
   gate2Result = { passed: true, skipped: true, reason: 'No --ref image provided' };
   if (opts.ref && refImg) {
-    const resolvedSidecar = mode === 'wireframe' ? resolveExpectedLandmarks(opts.ref, opts.refLandmarks) : null;
     gate2Result = compareVisual({
       refImg,
       actualPath,
@@ -283,31 +397,34 @@ try {
   const durationMs = Date.now() - startMs;
   const passed = Boolean(gate1Result?.passed && gate2Result?.passed);
 
+  const report = buildReport({
+    passed,
+    iteration,
+    durationMs,
+    gate1Result,
+    gate2Result,
+  });
+
   const telemetryPath = recordTelemetry(opts.out, {
     url: opts.url,
     mode,
     dpr,
     iteration,
-    passed,
+    passed: report.passed,
     gate1Passed: Boolean(gate1Result?.passed),
     gate2Passed: Boolean(gate2Result?.passed),
     mismatchPct: gate2Result?.mismatchPct ?? null,
-    durationMs,
+    durationMs: report.durationMs,
+    findingIds: report.findings.map((f) => f.id),
     model: opts.model,
     harness: opts.harness,
   });
 
-  const output = {
-    passed,
-    iteration,
-    durationMs,
-    gate1: gate1Result,
-    gate2: gate2Result,
-    telemetry: telemetryPath,
-  };
+  report.telemetry = telemetryPath;
+  report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
 
-  console.log(JSON.stringify(output, null, 2));
-  process.exit(passed ? 0 : 1);
+  fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
+  process.exit(report.exitCode);
 } catch (err) {
   if (browser) {
     try {
@@ -316,33 +433,42 @@ try {
   }
   const durationMs = Date.now() - startMs;
   const errMsg = err.message || String(err);
+  const parsedIter = Number(opts.iteration);
+  const safeIter = Number.isInteger(parsedIter) ? parsedIter : iteration;
+
+  const failureReport = buildReport({
+    passed: false,
+    iteration: safeIter,
+    durationMs,
+    errorMessage: errMsg,
+    gate1Result,
+    gate2Result,
+  });
+
   let telemetryPath = null;
   try {
-    const parsedIter = Number(opts.iteration);
     telemetryPath = recordTelemetry(opts.out, {
       url: opts.url,
       mode,
       dpr,
-      iteration: Number.isInteger(parsedIter) ? parsedIter : null,
+      iteration: safeIter,
       passed: false,
-      gate1Passed: Boolean(gate1Result?.passed),
-      gate2Passed: false,
+      gate1Passed: Boolean(failureReport.gates.gate1?.passed),
+      gate2Passed: Boolean(failureReport.gates.gate2?.passed),
       mismatchPct: null,
-      durationMs,
+      durationMs: failureReport.durationMs,
       error: errMsg,
+      findingIds: failureReport.findings.map((f) => f.id),
       model: opts.model,
       harness: opts.harness,
     });
   } catch {}
-  const failureOutput = {
-    passed: false,
-    iteration: Number.isInteger(Number(opts.iteration)) ? Number(opts.iteration) : null,
-    durationMs,
-    error: errMsg,
-    gate1: gate1Result,
-    gate2: gate2Result,
-    telemetry: telemetryPath,
-  };
-  console.log(JSON.stringify(failureOutput, null, 2));
-  process.exit(1);
+
+  failureReport.telemetry = telemetryPath;
+  if (telemetryPath) {
+    failureReport.artifacts = { ...(failureReport.artifacts || {}), telemetry: telemetryPath };
+  }
+
+  fs.writeSync(1, JSON.stringify(failureReport, null, 2) + '\n');
+  process.exit(failureReport.exitCode);
 }

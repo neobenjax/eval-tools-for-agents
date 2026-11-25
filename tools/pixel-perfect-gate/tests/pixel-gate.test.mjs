@@ -92,10 +92,10 @@ test('passes Gate 1 + Gate 2 on exact 1x match and logs telemetry', async () => 
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate1.passed, true);
-  assert.equal(json.gate2.passed, true);
-  assert.equal(json.gate2.mismatchPct, 0);
-  assert.equal(fs.existsSync(json.gate2.artifacts.composite), true);
+  assert.equal(json.gates.gate1.passed, true);
+  assert.equal(json.gates.gate2.passed, true);
+  assert.equal(json.gates.gate2.mismatchPct, 0);
+  assert.equal(fs.existsSync(json.gates.gate2.artifacts.composite), true);
   assert.equal(fs.existsSync(json.telemetry), true);
 });
 
@@ -108,11 +108,11 @@ test('flags horizontal overflow, 404 asset, broken image, and respects data-allo
   ]);
   assert.equal(code, 1);
   assert.equal(json.passed, false);
-  assert.equal(json.gate1.passed, false);
-  assert.equal(json.gate1.horizontalOverflow, true);
-  assert.ok(json.gate1.networkErrors.length >= 1);
-  assert.ok(json.gate1.brokenImages.length >= 1);
-  assert.equal(json.gate1.overlappingSiblings.length, 0);
+  assert.equal(json.gates.gate1.passed, false);
+  assert.equal(json.gates.gate1.horizontalOverflow, true);
+  assert.ok(json.gates.gate1.networkErrors.length >= 1);
+  assert.ok(json.gates.gate1.brokenImages.length >= 1);
+  assert.equal(json.gates.gate1.overlappingSiblings.length, 0);
 });
 
 test('supports @2x DPR Figma reference exports', async () => {
@@ -125,8 +125,8 @@ test('supports @2x DPR Figma reference exports', async () => {
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate2.dimensions, '960x560');
-  assert.equal(json.gate2.mismatchPct, 0);
+  assert.equal(json.gates.gate2.dimensions, '960x560');
+  assert.equal(json.gates.gate2.mismatchPct, 0);
 });
 
 test('supports wireframe mode without failing on pixelmatch diffs', async () => {
@@ -140,8 +140,8 @@ test('supports wireframe mode without failing on pixelmatch diffs', async () => 
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate2.mode, 'wireframe');
-  assert.equal(fs.existsSync(json.gate2.artifacts.composite), true);
+  assert.equal(json.gates.gate2.mode, 'wireframe');
+  assert.equal(fs.existsSync(json.gates.gate2.artifacts.composite), true);
 });
 
 test('wireframe mode: passes color-only changes, fails on >4px landmark shift and blank page', async () => {
@@ -159,8 +159,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(passRun.code, 0);
   assert.equal(passRun.json.passed, true);
-  assert.equal(passRun.json.gate2.passed, true);
-  assert.equal(passRun.json.gate2.findings.length, 0);
+  assert.equal(passRun.json.gates.gate2.passed, true);
+  assert.equal(passRun.json.gates.gate2.findings.length, 0);
 
   // 2. Discovery: color-only change WITHOUT --ref-landmarks discovers wireframe-base-1x.landmarks.json -> passes
   const passDiscovered = await runCli([
@@ -171,8 +171,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(passDiscovered.code, 0);
   assert.equal(passDiscovered.json.passed, true);
-  assert.equal(passDiscovered.json.gate2.passed, true);
-  assert.equal(passDiscovered.json.gate2.findings.length, 0);
+  assert.equal(passDiscovered.json.gates.gate2.passed, true);
+  assert.equal(passDiscovered.json.gates.gate2.findings.length, 0);
 
   // 3. Shifted <main> landmark (>4px) with explicit --ref-landmarks -> fails
   const shiftRun = await runCli([
@@ -184,8 +184,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(shiftRun.code, 1);
   assert.equal(shiftRun.json.passed, false);
-  assert.equal(shiftRun.json.gate2.passed, false);
-  assert.ok(shiftRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+  assert.equal(shiftRun.json.gates.gate2.passed, false);
+  assert.ok(shiftRun.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
 
   // 4. Discovery: shifted <main> landmark WITHOUT --ref-landmarks discovers sidecar -> fails
   const shiftDiscovered = await runCli([
@@ -196,8 +196,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(shiftDiscovered.code, 1);
   assert.equal(shiftDiscovered.json.passed, false);
-  assert.equal(shiftDiscovered.json.gate2.passed, false);
-  assert.ok(shiftDiscovered.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+  assert.equal(shiftDiscovered.json.gates.gate2.passed, false);
+  assert.ok(shiftDiscovered.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
 
   // 5. Boundary pin: exactly 4px shift on <main> (within <=4px tolerance) -> passes
   const shift4px = await runCli([
@@ -208,8 +208,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(shift4px.code, 0);
   assert.equal(shift4px.json.passed, true);
-  assert.equal(shift4px.json.gate2.passed, true);
-  assert.equal(shift4px.json.gate2.findings.length, 0);
+  assert.equal(shift4px.json.gates.gate2.passed, true);
+  assert.equal(shift4px.json.gates.gate2.findings.length, 0);
 
   // 6. Boundary pin: exactly 5px shift on <main> (> 4px tolerance) -> fails
   const shift5px = await runCli([
@@ -220,8 +220,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(shift5px.code, 1);
   assert.equal(shift5px.json.passed, false);
-  assert.equal(shift5px.json.gate2.passed, false);
-  assert.ok(shift5px.json.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
+  assert.equal(shift5px.json.gates.gate2.passed, false);
+  assert.ok(shift5px.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.main'));
 
   const nullCoordLandmarks = path.join(fixturesDir, 'wireframe-null-coordinate.landmarks.json');
   const emptyLandmarks = path.join(fixturesDir, 'wireframe-empty.landmarks.json');
@@ -236,8 +236,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(missingCoordRun.code, 1);
   assert.equal(missingCoordRun.json.passed, false);
-  assert.equal(missingCoordRun.json.gate2.passed, false);
-  assert.ok(missingCoordRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.footer'));
+  assert.equal(missingCoordRun.json.gates.gate2.passed, false);
+  assert.ok(missingCoordRun.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.footer'));
 
   // 8. Fail-closed on null coordinate at x: 0 (proves operands checked before arithmetic without ToNumber(null) === 0 hole)
   const nullCoordRun = await runCli([
@@ -250,8 +250,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(nullCoordRun.code, 1);
   assert.equal(nullCoordRun.json.passed, false);
-  assert.equal(nullCoordRun.json.gate2.passed, false);
-  assert.ok(nullCoordRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.header'));
+  assert.equal(nullCoordRun.json.gates.gate2.passed, false);
+  assert.ok(nullCoordRun.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.header'));
 
   // 9. Sidecar present but empty array ([]) fails with invalid-sidecar finding
   const emptySidecarRun = await runCli([
@@ -263,8 +263,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(emptySidecarRun.code, 1);
   assert.equal(emptySidecarRun.json.passed, false);
-  assert.equal(emptySidecarRun.json.gate2.passed, false);
-  assert.ok(emptySidecarRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+  assert.equal(emptySidecarRun.json.gates.gate2.passed, false);
+  assert.ok(emptySidecarRun.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
 
   // 10. Blank page (0 landmarks) -> fails
   const blankRun = await runCli([
@@ -276,8 +276,8 @@ test('wireframe mode: passes color-only changes, fails on >4px landmark shift an
   ]);
   assert.equal(blankRun.code, 1);
   assert.equal(blankRun.json.passed, false);
-  assert.equal(blankRun.json.gate2.passed, false);
-  assert.ok(blankRun.json.gate2.findings.some((f) => f.id === 'gate2.landmark.missing-page-landmarks'));
+  assert.equal(blankRun.json.gates.gate2.passed, false);
+  assert.ok(blankRun.json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.missing-page-landmarks'));
 });
 
 test('passes against committed reference PNG generated outside the test run', async () => {
@@ -289,8 +289,8 @@ test('passes against committed reference PNG generated outside the test run', as
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate2.passed, true);
-  assert.equal(json.gate2.mismatchPct, 0);
+  assert.equal(json.gates.gate2.passed, true);
+  assert.equal(json.gates.gate2.mismatchPct, 0);
 });
 
 test('--full-page passes on exact committed full-page PNG and fails on height mismatch', async () => {
@@ -304,8 +304,8 @@ test('--full-page passes on exact committed full-page PNG and fails on height mi
   ]);
   assert.equal(passRun.code, 0);
   assert.equal(passRun.json.passed, true);
-  assert.equal(passRun.json.gate2.dimensions, '480x420');
-  assert.equal(passRun.json.gate2.mismatchPct, 0);
+  assert.equal(passRun.json.gates.gate2.dimensions, '480x420');
+  assert.equal(passRun.json.gates.gate2.mismatchPct, 0);
 
   const failRun = await runCli([
     '--url', `${baseUrl}/fullpage-height-mismatch.html`,
@@ -316,8 +316,8 @@ test('--full-page passes on exact committed full-page PNG and fails on height mi
   ]);
   assert.equal(failRun.code, 1);
   assert.equal(failRun.json.passed, false);
-  assert.equal(failRun.json.gate2.passed, false);
-  assert.match(failRun.json.gate2.error, /Dimension mismatch/);
+  assert.equal(failRun.json.gates.gate2.passed, false);
+  assert.match(failRun.json.gates.gate2.error, /Dimension mismatch/);
 
   // Strict 1px boundary check using 480x421 committed PNG (1px taller than 480x420 actual page)
   const tallerRef = path.join(fixturesDir, 'committed-fullpage-1px-taller-1x.png');
@@ -332,8 +332,8 @@ test('--full-page passes on exact committed full-page PNG and fails on height mi
   ]);
   assert.equal(fail1pxFull.code, 1);
   assert.equal(fail1pxFull.json.passed, false);
-  assert.equal(fail1pxFull.json.gate2.passed, false);
-  assert.match(fail1pxFull.json.gate2.error, /Dimension mismatch/);
+  assert.equal(fail1pxFull.json.gates.gate2.passed, false);
+  assert.match(fail1pxFull.json.gates.gate2.error, /Dimension mismatch/);
 
   // 2. Without --full-page: maxDrift is Math.ceil(dpr) = 1 -> cropped/padded within tolerance and passes (0% mismatch)
   const pass1pxCropped = await runCli([
@@ -344,8 +344,8 @@ test('--full-page passes on exact committed full-page PNG and fails on height mi
   ]);
   assert.equal(pass1pxCropped.code, 0);
   assert.equal(pass1pxCropped.json.passed, true);
-  assert.equal(pass1pxCropped.json.gate2.passed, true);
-  assert.equal(pass1pxCropped.json.gate2.mismatchPct, 0);
+  assert.equal(pass1pxCropped.json.gates.gate2.passed, true);
+  assert.equal(pass1pxCropped.json.gates.gate2.mismatchPct, 0);
 });
 
 test('flags overlapping siblings when data-allow-overlap is absent', async () => {
@@ -356,8 +356,8 @@ test('flags overlapping siblings when data-allow-overlap is absent', async () =>
   ]);
   assert.equal(code, 1);
   assert.equal(json.passed, false);
-  assert.equal(json.gate1.passed, false);
-  assert.ok(json.gate1.overlappingSiblings.length >= 1);
+  assert.equal(json.gates.gate1.passed, false);
+  assert.ok(json.gates.gate1.overlappingSiblings.length >= 1);
 });
 
 test('flags clipped text and console errors in Gate 1', async () => {
@@ -368,9 +368,9 @@ test('flags clipped text and console errors in Gate 1', async () => {
   ]);
   assert.equal(code, 1);
   assert.equal(json.passed, false);
-  assert.equal(json.gate1.passed, false);
-  assert.ok(json.gate1.clippedTextElements.length >= 1);
-  assert.ok(json.gate1.consoleErrors.length >= 1);
+  assert.equal(json.gates.gate1.passed, false);
+  assert.ok(json.gates.gate1.clippedTextElements.length >= 1);
+  assert.ok(json.gates.gate1.consoleErrors.length >= 1);
 });
 
 test('supports --selector with omitted --viewport using full-frame reference dimensions', async () => {
@@ -383,9 +383,9 @@ test('supports --selector with omitted --viewport using full-frame reference dim
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate1.viewport, '480x280');
-  assert.equal(json.gate2.passed, true);
-  assert.equal(json.gate2.mismatchPct, 0);
+  assert.equal(json.gates.gate1.viewport, '480x280');
+  assert.equal(json.gates.gate2.passed, true);
+  assert.equal(json.gates.gate2.mismatchPct, 0);
 });
 
 test('supports --selector with element-sized reference without viewport overflow', async () => {
@@ -418,10 +418,10 @@ test('supports --selector with element-sized reference without viewport overflow
   ]);
   assert.equal(code, 0);
   assert.equal(json.passed, true);
-  assert.equal(json.gate1.passed, true);
-  assert.equal(json.gate1.horizontalOverflow, false);
-  assert.equal(json.gate2.passed, true);
-  assert.equal(json.gate2.mismatchPct, 0);
+  assert.equal(json.gates.gate1.passed, true);
+  assert.equal(json.gates.gate1.horizontalOverflow, false);
+  assert.equal(json.gates.gate2.passed, true);
+  assert.equal(json.gates.gate2.mismatchPct, 0);
 });
 
 test('supports --mask: ignores change inside mask, fails without mask, and fails on outside change', async () => {
@@ -448,13 +448,13 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   ]);
   assert.equal(run1.code, 0);
   assert.equal(run1.json.passed, true);
-  assert.equal(run1.json.gate2.mismatchPct, 0);
+  assert.equal(run1.json.gates.gate2.mismatchPct, 0);
 
   // Verify saved artifacts: scan the ENTIRE masked bounding box in actual.png, diff.png, and composite-diff.png
   const { PNG } = await import('pngjs');
-  const actualPng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.actual));
-  const diffPng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.diff));
-  const compositePng = PNG.sync.read(fs.readFileSync(run1.json.gate2.artifacts.composite));
+  const actualPng = PNG.sync.read(fs.readFileSync(run1.json.gates.gate2.artifacts.actual));
+  const diffPng = PNG.sync.read(fs.readFileSync(run1.json.gates.gate2.artifacts.diff));
+  const compositePng = PNG.sync.read(fs.readFileSync(run1.json.gates.gate2.artifacts.composite));
   const startX = Math.max(0, Math.floor(dynBox.x));
   const startY = Math.max(0, Math.floor(dynBox.y));
   const endX = Math.min(actualPng.width, Math.ceil(dynBox.x + dynBox.width));
@@ -487,7 +487,7 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   ]);
   assert.equal(run2.code, 1);
   assert.equal(run2.json.passed, false);
-  assert.ok(run2.json.gate2.mismatchPct > 0);
+  assert.ok(run2.json.gates.gate2.mismatchPct > 0);
 
   // 3. Target page has changes outside #dyn, with --mask #dyn -> fails (diff outside mask detected)
   const run3 = await runCli([
@@ -498,7 +498,7 @@ test('supports --mask: ignores change inside mask, fails without mask, and fails
   ]);
   assert.equal(run3.code, 1);
   assert.equal(run3.json.passed, false);
-  assert.ok(run3.json.gate2.mismatchPct > 0);
+  assert.ok(run3.json.gates.gate2.mismatchPct > 0);
 });
 
 test('fails with a dimension finding when reference dimensions are not divisible by --dpr', async () => {
@@ -518,10 +518,10 @@ test('fails with a dimension finding when reference dimensions are not divisible
   ]);
   assert.equal(code, 1);
   assert.equal(json.passed, false);
-  assert.match(json.error, /not divisible by --dpr 2/);
-  assert.ok(json.gate2);
-  assert.equal(json.gate2.passed, false);
-  assert.match(json.gate2.error, /not divisible by --dpr 2/);
+  assert.match(json.error?.message, /not divisible by --dpr 2/);
+  assert.ok(json.gates.gate2);
+  assert.equal(json.gates.gate2.passed, false);
+  assert.match(json.gates.gate2.error, /not divisible by --dpr 2/);
   assert.ok(fs.existsSync(json.telemetry));
 });
 
@@ -535,7 +535,7 @@ test('rejects --iteration outside 1-5 with JSON on stdout and exit 1', async () 
     ]);
     assert.equal(code, 1);
     assert.equal(json.passed, false);
-    assert.match(json.error, /--iteration/);
+    assert.match(json.error?.message, /--iteration/);
   }
 });
 
@@ -569,8 +569,8 @@ test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, 
     const { code, json } = await runCli([...c.args, '--out', outDir]);
     assert.equal(code, 1, `${c.name} should exit 1`);
     assert.equal(json.passed, false, `${c.name} should report passed: false`);
-    assert.ok(typeof json.error === 'string' && json.error.length > 0, `${c.name} should include error`);
-    assert.match(json.error, c.expectedError, `${c.name} should match expected error substring`);
+    assert.ok(typeof json.error?.message === 'string' && json.error.message.length > 0, `${c.name} should include error`);
+    assert.match(json.error?.message, c.expectedError, `${c.name} should match expected error substring`);
     assert.ok(json.telemetry && fs.existsSync(json.telemetry), `${c.name} should write telemetry.jsonl`);
     const lines = fs.readFileSync(json.telemetry, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
     assert.equal(lines.length, 1, `${c.name} should have 1 telemetry entry`);
@@ -578,4 +578,93 @@ test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, 
     assert.ok(typeof lines[0].error === 'string');
     assert.match(lines[0].error, c.expectedError, `${c.name} telemetry error should match expected error substring`);
   }
+});
+
+test('pixel-gate --version exits 0 and outputs 0.1.0', async () => {
+  const { stdout } = await execFileAsync('node', [cliPath, '--version'], { encoding: 'utf8' });
+  assert.equal(stdout.trim(), '0.1.0');
+  const withUrl = await execFileAsync('node', [cliPath, '--url', 'http://127.0.0.1:9/', '--version'], { encoding: 'utf8' });
+  assert.equal(withUrl.stdout.trim(), '0.1.0');
+});
+
+test('fails with gate2.landmark.invalid-sidecar and gate2Passed: false when sidecar is malformed JSON', async () => {
+  const wireRef = path.join(fixturesDir, 'wireframe-base-1x.png');
+  const malformedSidecar = path.join(tmpOut, 'malformed.landmarks.json');
+  fs.writeFileSync(malformedSidecar, '{');
+  const outDir = path.join(tmpOut, 'run-wireframe-malformed-sidecar');
+
+  const { code, json } = await runCli([
+    '--url', `${baseUrl}/wireframe-base.html`,
+    '--ref', wireRef,
+    '--ref-landmarks', malformedSidecar,
+    '--mode', 'wireframe',
+    '--out', outDir,
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.gates.gate2.passed, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(json.gates.gate2.regions, []);
+  assert.equal(json.gates.gate2.regionCount, 0);
+  assert.ok(json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+  assert.ok(json.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
+
+  assert.ok(json.telemetry && fs.existsSync(json.telemetry));
+  const lines = fs.readFileSync(json.telemetry, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].gate2Passed, false);
+  assert.ok(lines[0].findingIds.includes('gate2.landmark.invalid-sidecar'));
+});
+
+test('8px Chebyshev clustering boundary merges at distance 8 and splits at distance 9', async () => {
+  const { clusterDiffRegions } = await import('../src/visual-diff.mjs');
+
+  // Width 20, Height 1, DPR 1, 8px gap.
+  // Case A: Diff at x=0 and x=8 (Chebyshev distance = 8) -> merges into 1 region
+  const diffA = new Uint8Array(20 * 1 * 4);
+  diffA[0] = 255; diffA[1] = 0; diffA[2] = 0; diffA[3] = 255;
+  const idx8 = 8 * 4;
+  diffA[idx8] = 255; diffA[idx8 + 1] = 0; diffA[idx8 + 2] = 0; diffA[idx8 + 3] = 255;
+
+  const resA = clusterDiffRegions(diffA, 20, 1, 1, 8);
+  assert.equal(resA.regionCount, 1);
+  assert.equal(resA.regions.length, 1);
+  assert.deepEqual(resA.regions[0].box, { x: 0, y: 0, width: 9, height: 1 });
+
+  // Case B: Diff at x=0 and x=9 (Chebyshev distance = 9) -> stays 2 separate regions
+  const diffB = new Uint8Array(20 * 1 * 4);
+  diffB[0] = 255; diffB[1] = 0; diffB[2] = 0; diffB[3] = 255;
+  const idx9 = 9 * 4;
+  diffB[idx9] = 255; diffB[idx9 + 1] = 0; diffB[idx9 + 2] = 0; diffB[idx9 + 3] = 255;
+
+  const resB = clusterDiffRegions(diffB, 20, 1, 1, 8);
+  assert.equal(resB.regionCount, 2);
+  assert.equal(resB.regions.length, 2);
+  assert.deepEqual(resB.regions[0].box, { x: 0, y: 0, width: 1, height: 1 });
+  assert.deepEqual(resB.regions[1].box, { x: 9, y: 0, width: 1, height: 1 });
+});
+
+test('Commander parse error records provided --iteration in the report', async () => {
+  const { code, json } = await runCli([
+    '--iteration', '3',
+  ]);
+  assert.equal(code, 1);
+  assert.equal(json.passed, false);
+  assert.equal(json.iteration, 3);
+  assert.match(json.error?.message, /--url/);
+});
+
+test('landmark finding id suffix 1-based indexing: index 0 omits suffix, index 1 uses .2', async () => {
+  const { compareWireframeLandmarks } = await import('../src/visual-diff.mjs');
+  const exp0 = { selector: 'header', index: 0, x: 0, y: 0, width: 100, height: 50 };
+  const exp1 = { selector: 'header', index: 1, x: 0, y: 60, width: 100, height: 50 };
+  const act0 = { selector: 'header', index: 0, x: 10, y: 0, width: 100, height: 50 };
+  const act1 = { selector: 'header', index: 1, x: 10, y: 60, width: 100, height: 50 };
+
+  const result = compareWireframeLandmarks([act0, act1], [exp0, exp1], 4, true);
+  assert.equal(result.passed, false);
+  assert.equal(result.findings.length, 2);
+  assert.equal(result.findings[0].id, 'gate2.landmark.header');
+  assert.equal(result.findings[1].id, 'gate2.landmark.header.2');
 });

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 static good</title>
+<style>
+  body { margin: 16px; font: 16px monospace; }
+  section { margin: 8px 0; }
+  .box { display: inline-block; width: 24px; height: 24px; background: #ddd; vertical-align: middle; }
+</style>
+<main id="main">
+  <section>
+    <button id="b-text" type="button">Save</button>
+    <button id="b-aria" type="button" aria-label="Close"><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6"></circle></svg></button>
+    <span id="lbl-btn">Open menu</span><button id="b-labelledby" type="button" aria-labelledby="lbl-btn"></button>
+    <a id="a-text" href="/m2/site/about.html">About</a>
+    <a id="a-img" href="/m2/site/home.html"><img alt="Logo" width="16" height="16" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="></a>
+    <a id="a-anchor" href="#main">Jump to main</a>
+    <div id="r-btn" class="box" role="button" tabindex="0" aria-label="Toggle"></div>
+    <div id="r-link" class="box" role="link" tabindex="0" aria-label="Docs"></div>
+  </section>
+  <form id="fields" onsubmit="return false">
+    <label for="in-ok">Name</label><input id="in-ok" type="text">
+    <label>Email <input id="in-wrap" type="text"></label>
+    <input id="in-aria" type="text" aria-label="Search the site">
+    <span id="lbl-city">City</span><input id="in-labelledby" type="text" aria-labelledby="lbl-city">
+    <label for="sel-ok">Size</label><select id="sel-ok"><option>One</option></select>
+    <label for="ta-ok">Notes</label><textarea id="ta-ok"></textarea>
+    <input id="in-hidden" type="hidden" value="x">
+    <input id="in-submit" type="submit" value="Go">
+  </form>
+</main>

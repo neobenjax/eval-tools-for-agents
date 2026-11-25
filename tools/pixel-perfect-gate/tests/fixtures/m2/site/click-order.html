@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 click order</title>
+<style>body { margin: 16px; font: 16px monospace; } button { margin-right: 8px; }</style>
+<button id="a" type="button">A</button>
+<button id="b" type="button">B</button>
+<button id="c" type="button">C</button>
+<a id="dead" href="#">Dead link</a>
+<script>
+  ['a', 'b', 'c'].forEach(function (id) {
+    document.getElementById(id).addEventListener('click', function () { fetch('/__click?id=' + id); });
+  });
+  // A link with href="#" is a static finding, but a scenario must never click it unless a step says so.
+  document.getElementById('dead').addEventListener('click', function () { fetch('/__click?id=dead'); });
+</script>

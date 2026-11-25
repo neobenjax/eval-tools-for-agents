@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>m2 network</title>
+<style>
+  html, body { margin: 0; background: #cbd5e1; }
+  #slot { position: absolute; left: 20px; top: 20px; width: 40px; height: 40px; background-size: 40px 40px; }
+</style>
+<div id="slot"></div>
+<script>
+  // ?ext=<origin> asks for a red PNG from another origin. A fail-closed network policy aborts it,
+  // so the committed reference (no image) keeps matching. Loaded as a CSS background on purpose:
+  // a blocked <img> would be a broken image and add an unrelated Gate 1 finding.
+  var ext = new URLSearchParams(location.search).get('ext');
+  if (ext) document.getElementById('slot').style.backgroundImage = 'url(' + ext + '/red.png)';
+</script>

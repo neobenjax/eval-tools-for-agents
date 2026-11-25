@@ -142,7 +142,11 @@ function assertUnfinishedRun(run) {
   assert.equal(typeof run.json.error.message, 'string');
   assert.ok(run.json.error.message.length > 0);
   assert.equal(run.json.gates.gate1.passed, true);
+  assert.equal(run.json.gates.gate1.skipped, true);
   assert.equal(run.json.gates.gate2.passed, true);
+  assert.equal(run.json.gates.gate2.skipped, true);
+  assert.equal(run.json.gates.gate3.passed, true);
+  assert.equal(run.json.gates.gate3.skipped, true);
 }
 
 serialTest('M1-AC-09: Stdout for a pass, a gate failure, a missing reference, and a thrown launch error all parse as the section 6 object with `schemaVersion` `1`.', async () => {
@@ -160,7 +164,9 @@ serialTest('M1-AC-09: Stdout for a pass, a gate failure, a missing reference, an
   ]) {
     assert.equal(run.json?.schemaVersion, 1, label);
     assert.equal(run.json?.gates?.gate1?.passed, true, `${label} gate1.passed`);
+    assert.equal(run.json?.gates?.gate1?.skipped, true, `${label} gate1.skipped`);
     assert.equal(run.json?.gates?.gate2?.passed, true, `${label} gate2.passed`);
+    assert.equal(run.json?.gates?.gate2?.skipped, true, `${label} gate2.skipped`);
     assertUnfinishedRun(run);
   }
 });

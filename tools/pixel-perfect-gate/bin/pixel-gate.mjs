@@ -103,7 +103,9 @@ function resolveExpectedLandmarks(refPath, refLandmarksPath) {
   try {
     return { data: JSON.parse(content), found: true };
   } catch (err) {
-    throw new Error(`Invalid sidecar JSON in ${targetPath}: ${err.message}`);
+    const sidecarErr = new Error(`Invalid sidecar JSON in ${targetPath}: ${err.message}`);
+    sidecarErr.code = 'INVALID_SIDECAR_JSON';
+    throw sidecarErr;
   }
 }
 
@@ -174,8 +176,8 @@ try {
         dpr,
         iteration,
         passed: false,
-        gate1Passed: false,
-        gate2Passed: false,
+        gate1Passed: Boolean(report.gates.gate1?.passed),
+        gate2Passed: Boolean(report.gates.gate2?.passed),
         mismatchPct: null,
         durationMs: report.durationMs,
         error: errorMsg,
@@ -345,23 +347,27 @@ try {
     try {
       resolvedSidecar = resolveExpectedLandmarks(opts.ref, opts.refLandmarks);
     } catch (err) {
-      gate2Result = {
-        passed: false,
-        skipped: false,
-        error: err.message,
-        findings: [
-          {
-            id: 'gate2.landmark.invalid-sidecar',
-            gate: 'gate2',
-            severity: 'fail',
-            selector: '',
-            box: null,
-            text: err.message,
-          },
-        ],
-        regions: [],
-        regionCount: 0,
-      };
+      if (err?.code === 'INVALID_SIDECAR_JSON') {
+        gate2Result = {
+          passed: false,
+          skipped: false,
+          mode: 'wireframe',
+          mismatchPct: null,
+          error: err.message,
+          findings: [
+            {
+              id: 'gate2.landmark.invalid-sidecar',
+              gate: 'gate2',
+              severity: 'fail',
+              selector: '',
+              box: null,
+              text: err.message,
+            },
+          ],
+          regions: [],
+          regionCount: 0,
+        };
+      }
       throw err;
     }
   }
@@ -447,8 +453,8 @@ try {
       dpr,
       iteration: safeIter,
       passed: false,
-      gate1Passed: Boolean(gate1Result?.passed),
-      gate2Passed: Boolean(gate2Result?.passed),
+      gate1Passed: Boolean(failureReport.gates.gate1?.passed),
+      gate2Passed: Boolean(failureReport.gates.gate2?.passed),
       mismatchPct: null,
       durationMs: failureReport.durationMs,
       error: errMsg,

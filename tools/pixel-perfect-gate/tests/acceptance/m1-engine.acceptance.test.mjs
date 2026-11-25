@@ -148,6 +148,9 @@ serialTest('M1-AC-01 break-it: missing landmarks sidecar fails closed', async ()
   ]);
   assert.equal(run.code, 1);
   assert.equal(run.json.passed, false);
+  assert.equal(run.json.gates.gate2.passed, true);
+  assert.equal(run.json.gates.gate2.skipped, true);
+  assert.equal(run.json.findings.some((finding) => finding.id === 'gate2.landmark.invalid-sidecar'), false);
   assert.match(run.json.error?.message, /Reference landmarks file not found/);
   assert.match(run.json.error?.message, /ac01-missing\.landmarks\.json/);
 });
@@ -183,6 +186,10 @@ serialTest('M1-AC-02: A color-only change (same boxes, different paint) stays pa
   assert.equal(passRun.code, 0);
   assert.equal(passRun.json.passed, true);
   assert.equal(passRun.json.gates.gate2.mode, 'wireframe');
+  assert.equal(Object.prototype.hasOwnProperty.call(passRun.json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(passRun.json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(passRun.json.gates.gate2.regions, []);
+  assert.equal(passRun.json.gates.gate2.regionCount, 0);
   assert.equal(passRun.json.gates.gate2.findings.length, 0);
 
   const shifted = JSON.parse(fs.readFileSync(wireLandmarks, 'utf8'));
@@ -295,6 +302,7 @@ serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page referen
   assert.equal(failRun.json.passed, false);
   assert.equal(failRun.json.gates.gate2.passed, false);
   assert.match(failRun.json.gates.gate2.error, /Dimension mismatch/);
+  assert.ok(failRun.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 
   const tallerRef = tracked('tools/pixel-perfect-gate/tests/fixtures/committed-fullpage-1px-taller-1x.png');
   const onePx = await runCli([
@@ -307,6 +315,7 @@ serialTest('M1-AC-05: A `--full-page` fixture uses a committed full-page referen
   assert.equal(onePx.code, 1);
   assert.equal(onePx.json.gates.gate2.passed, false);
   assert.match(onePx.json.gates.gate2.error, /Dimension mismatch/);
+  assert.ok(onePx.json.gates.gate2.findings.some((finding) => finding.id === 'gate2.dimension-mismatch'));
 });
 
 serialTest('M1-AC-06: A fixture covers clipped text. *(Covered in PR #2)*', async () => {
@@ -342,8 +351,13 @@ serialTest('M1-AC-08: Reference dimensions not divisible by `--dpr` fail with a 
   ]);
   assert.equal(odd.code, 1);
   assert.equal(odd.json.passed, false);
+  assert.equal(odd.json.gates.gate1.passed, true);
   assert.equal(odd.json.gates.gate1.skipped, true);
   assert.equal(odd.json.gates.gate2.passed, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(odd.json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(odd.json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(odd.json.gates.gate2.regions, []);
+  assert.equal(odd.json.gates.gate2.regionCount, 0);
   assert.match(odd.json.error?.message, /101x51/);
   assert.match(odd.json.error?.message, /not divisible by --dpr 2/);
   assert.match(odd.json.gates.gate2.error, /not divisible by --dpr 2/);

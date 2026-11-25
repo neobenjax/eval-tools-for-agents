@@ -583,6 +583,8 @@ test('emits valid JSON and writes telemetry.jsonl on fatal exits (conn refused, 
 test('pixel-gate --version exits 0 and outputs 0.1.0', async () => {
   const { stdout } = await execFileAsync('node', [cliPath, '--version'], { encoding: 'utf8' });
   assert.equal(stdout.trim(), '0.1.0');
+  const withUrl = await execFileAsync('node', [cliPath, '--url', 'http://127.0.0.1:9/', '--version'], { encoding: 'utf8' });
+  assert.equal(withUrl.stdout.trim(), '0.1.0');
 });
 
 test('fails with gate2.landmark.invalid-sidecar and gate2Passed: false when sidecar is malformed JSON', async () => {
@@ -601,6 +603,10 @@ test('fails with gate2.landmark.invalid-sidecar and gate2Passed: false when side
   assert.equal(code, 1);
   assert.equal(json.passed, false);
   assert.equal(json.gates.gate2.passed, false);
+  assert.equal(Object.prototype.hasOwnProperty.call(json.gates.gate2, 'mismatchPct'), true);
+  assert.equal(json.gates.gate2.mismatchPct, null);
+  assert.deepEqual(json.gates.gate2.regions, []);
+  assert.equal(json.gates.gate2.regionCount, 0);
   assert.ok(json.gates.gate2.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
   assert.ok(json.findings.some((f) => f.id === 'gate2.landmark.invalid-sidecar'));
 

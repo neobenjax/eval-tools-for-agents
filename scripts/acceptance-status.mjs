@@ -10,6 +10,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import {
+  breakItItems,
   criterionTitle,
   gapExecutionErrors,
   listAcceptanceSources,
@@ -118,7 +119,14 @@ export async function runAcceptanceStatus(argv = process.argv.slice(2)) {
   }
   const passCount = rows.filter((row) => row.suite === 'pass').length;
   const gapCount = rows.filter((row) => row.suite === 'gap').length;
+  const greenBreakIts = (manifest.criteria || []).reduce((count, entry) => {
+    if (entry.suite !== 'gap') return count;
+    return count + breakItItems(entry).items.filter((item) => item.suite === 'pass').length;
+  }, 0);
   console.log(`\n${passCount} green-suite criteria, ${gapCount} gap criteria (expected fail).`);
+  if (greenBreakIts > 0) {
+    console.log(`${greenBreakIts} green break-it tests are enforced under gap criteria.`);
+  }
   if (errors.length) {
     console.error('\nAcceptance gate failed:');
     for (const error of errors) console.error(`  - ${error}`);

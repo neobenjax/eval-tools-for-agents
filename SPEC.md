@@ -767,7 +767,7 @@ Milestone work is driven by tests written from section 8. The product change fol
 
 `ENFORCED_MILESTONES` in `tools/pixel-perfect-gate/tests/acceptance/manifest.mjs` is currently `M1` and `M2`. The family comes from the section 4 tag: `[M1.6]` is `M1`, `[M2.0a]` is `M2`, `[M2b.1]` is `M2b`. Section 8 checkboxes under an enforced family are the criteria. Checked boxes (`- [x]`) are the green suite. Unchecked boxes (`- [ ]`) are the gap suite. `- [X]` is not a checkbox.
 
-Milestone 2 tests are written as a gap suite (`M2-AC-01` to `M2-AC-37`, all `*.pending.mjs` under `tools/pixel-perfect-gate/tests/acceptance/pending/`, helpers in `tools/pixel-perfect-gate/tests/acceptance/m2-helpers.mjs`). When an M2 issue is implemented, promote its tests into `tools/pixel-perfect-gate/tests/acceptance/m2/` as `*.test.mjs`, check the section 8 boxes, and flip the manifest `suite` to `pass` in the same change. Do not add `M2b` to `ENFORCED_MILESTONES` until each of that family's section 8 criteria has a test. Milestone 2b is not part of the M1 or M2 suites.
+Milestone 2 tests are written as a gap suite (`M2-AC-01` to `M2-AC-37`, gap tests in `*.pending.mjs` under `tools/pixel-perfect-gate/tests/acceptance/pending/`, helpers in `tools/pixel-perfect-gate/tests/acceptance/m2-helpers.mjs`). When an M2 issue is implemented, promote its tests into `tools/pixel-perfect-gate/tests/acceptance/m2/` as `*.test.mjs`, check the section 8 boxes, and flip the manifest `suite` to `pass` in the same change. Do not add `M2b` to `ENFORCED_MILESTONES` until each of that family's section 8 criteria has a test. Milestone 2b is not part of the M1 or M2 suites.
 
 ### Traceability
 
@@ -777,7 +777,7 @@ Green tests are `*.test.mjs` under `tools/pixel-perfect-gate/tests/acceptance/` 
 
 ### Gaps stay visible
 
-A gap test is a real assertion of the criterion. It is expected to fail with `ERR_ASSERTION` until the product meets it. `node scripts/acceptance-status.mjs` runs the gap files. It exits 0 while every gap test fails that way, and exits 1 if a gap test is missing, skipped, todo, crashes, or starts passing. A gap test that starts passing is promoted into a green `*.test.mjs` file in the same change that checks its section 8 box. `node scripts/verify.mjs` runs this command (via the package test script) on `ubuntu-latest` and `windows-latest`, so `main` stays green and the remaining criteria cannot be skipped.
+A gap test is a real assertion of the criterion. It is expected to fail with `ERR_ASSERTION` until the product meets it. `node scripts/acceptance-status.mjs` runs the gap files. It exits 0 while every gap test fails that way, and exits 1 if a gap test is missing, skipped, todo, crashes, or starts passing. A gap test that starts passing is promoted into a green `*.test.mjs` file in the same change that checks its section 8 box. A break-it that already passes may be registered as `{ title, suite: "pass" }` and moved into a green `*.test.mjs` while its section 8 criterion stays unchecked, until that criterion's own test passes. `node scripts/verify.mjs` runs this command (via the package test script) on `ubuntu-latest` and `windows-latest`, so `main` stays green and the remaining criteria cannot be skipped.
 
 `node scripts/acceptance-status.mjs --static-only` checks names and wiring without executing gap tests. The green suite itself runs inside `npm test` before that command.
 

@@ -82,6 +82,36 @@ export function criterionTitle(entry) {
   return `${entry.id}: ${entry.text}`;
 }
 
+/**
+ * Break-it tests follow the criterion suite unless an entry is
+ * `{ title, suite: "pass" }` on an unchecked criterion. That break-it is green
+ * while the criterion's own test stays a gap.
+ */
+export function breakItItems(entry) {
+  const items = [];
+  const errors = [];
+  if (!Array.isArray(entry.breakIt)) return { items, errors };
+  const criterionSuite = entry.suite === 'pass' ? 'pass' : 'gap';
+  for (const raw of entry.breakIt) {
+    if (typeof raw === 'string') {
+      if (!raw) errors.push(`${entry.id} break-it title must be a non-empty string.`);
+      else items.push({ title: raw, suite: criterionSuite });
+      continue;
+    }
+    const title = raw && typeof raw === 'object' && typeof raw.title === 'string' ? raw.title : '';
+    const suite = raw && typeof raw === 'object' ? raw.suite : undefined;
+    if (!title || (suite !== 'pass' && suite !== 'gap')) {
+      errors.push(`${entry.id} break-it entry must be a title string or { title, suite: "pass" | "gap" }.`);
+      continue;
+    }
+    if (criterionSuite === 'pass' && suite === 'gap') {
+      errors.push(`${entry.id} is checked, so break-it "${title}" cannot stay in the gap suite.`);
+    }
+    items.push({ title, suite });
+  }
+  return { items, errors };
+}
+
 export function matchManifest(specCriteria, manifestCriteria) {
   const errors = [];
   const byText = new Map();
@@ -206,12 +236,14 @@ export function staticAcceptanceErrors({ specText, manifest, acceptanceDir, pack
     else if (found.kind !== expectedKind) {
       errors.push(`${entry.id} is suite "${entry.suite}" but ${relPosix(packageRoot, found.file)} is a ${found.kind} file.`);
     }
-    for (const breakTitle of entry.breakIt || []) {
-      allowed.add(breakTitle);
-      const breakFound = titlesByKind.get(breakTitle);
-      if (!breakFound) errors.push(`${entry.id} break-it test is missing: ${breakTitle}`);
-      else if (breakFound.kind !== expectedKind) {
-        errors.push(`${entry.id} break-it "${breakTitle}" must live in a ${expectedKind} file.`);
+    const parsedBreaks = breakItItems(entry);
+    errors.push(...parsedBreaks.errors);
+    for (const item of parsedBreaks.items) {
+      allowed.add(item.title);
+      const breakFound = titlesByKind.get(item.title);
+      if (!breakFound) errors.push(`${entry.id} break-it test is missing: ${item.title}`);
+      else if (breakFound.kind !== item.suite) {
+        errors.push(`${entry.id} break-it "${item.title}" must live in a ${item.suite} file.`);
       }
     }
   }
@@ -281,7 +313,9 @@ export function gapExecutionErrors(manifestCriteria, tapText) {
     errors.push('Gap suite skipped or todo tests. Acceptance tests cannot be skipped.');
   }
   const gapEntries = (manifestCriteria || []).filter((entry) => entry.suite === 'gap');
-  const breakTitles = gapEntries.flatMap((entry) => entry.breakIt || []);
+  const breakTitles = gapEntries.flatMap((entry) =>
+    breakItItems(entry).items.filter((item) => item.suite === 'gap').map((item) => item.title)
+  );
   const expected = [...gapEntries.map((entry) => criterionTitle(entry)), ...breakTitles];
   for (const title of expected) {
     const found = tap.tests.find((test) => test.name === title);
@@ -290,7 +324,12 @@ export function gapExecutionErrors(manifestCriteria, tapText) {
       continue;
     }
     if (found.directive) errors.push(`Gap test ${title} was ${found.directive}.`);
-    else if (found.ok) errors.push(`Gap test passed and must be promoted to the green suite: ${title}`);
+    else if (found.ok) {
+      const hint = title.includes(' break-it:')
+        ? ' Register it as { title, suite: "pass" } in a green *.test.mjs and leave the section 8 box unchecked until the criterion\'s own test passes.'
+        : '';
+      errors.push(`Gap test passed and must be promoted to the green suite: ${title}${hint ? `.${hint}` : ''}`);
+    }
     else if (found.code !== 'ERR_ASSERTION') {
       errors.push(`Gap test ${title} failed without ERR_ASSERTION (${found.code || found.failureType || 'unknown'}). Fix the test harness; do not treat a crash as a product gap.`);
     }

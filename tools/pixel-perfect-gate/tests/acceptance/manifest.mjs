@@ -141,7 +141,10 @@ export const criteria = [
     suite: 'gap',
     text: '`pixel-gate --help` exits `0` on Windows and on Ubuntu.',
     breakIt: [
-      'M2-AC-02 break-it: running with no arguments and no config prints one section 6 error object',
+      {
+        title: 'M2-AC-02 break-it: running with no arguments and no config prints one section 6 error object',
+        suite: 'pass',
+      },
     ],
   },
   {
@@ -163,7 +166,10 @@ export const criteria = [
     text: 'The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.',
     breakIt: [
       'M2-AC-04 break-it: --out cannot leave the .visual-eval tree',
-      'M2-AC-04 break-it: a failing run writes only under .visual-eval/ and invents no reference',
+      {
+        title: 'M2-AC-04 break-it: a failing run writes only under .visual-eval/ and invents no reference',
+        suite: 'pass',
+      },
     ],
   },
   {
@@ -172,7 +178,10 @@ export const criteria = [
     suite: 'gap',
     text: '`--url` and `--ref` still run Gate 1 and Gate 2 without a config file.',
     breakIt: [
-      'M2-AC-05 break-it: --url without --ref runs Gate 1 only and reports Gate 2 as skipped',
+      {
+        title: 'M2-AC-05 break-it: --url without --ref runs Gate 1 only and reports Gate 2 as skipped',
+        suite: 'pass',
+      },
     ],
   },
   {
@@ -288,7 +297,10 @@ export const criteria = [
     suite: 'gap',
     text: 'With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.',
     breakIt: [
-      'M2-AC-18 break-it: passed depends only on the deterministic gates when vision is off',
+      {
+        title: 'M2-AC-18 break-it: passed depends only on the deterministic gates when vision is off',
+        suite: 'pass',
+      },
     ],
   },
   {
@@ -315,7 +327,10 @@ export const criteria = [
     suite: 'gap',
     text: 'That verdict does not change `passed` unless `vision.blocking` is true. The default is false.',
     breakIt: [
-      'M2-AC-21 break-it: a blocking passing verdict cannot rescue a deterministic failure',
+      {
+        title: 'M2-AC-21 break-it: a blocking passing verdict cannot rescue a deterministic failure',
+        suite: 'pass',
+      },
       'M2-AC-21 break-it: blocking true without a verdict file changes nothing',
     ],
   },

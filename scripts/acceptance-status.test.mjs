@@ -187,6 +187,41 @@ test('gap execution must be an assertion failure, never a skip or a surprise pas
   const escaped = criterionTitle(hashed).replaceAll('#', '\\#');
   const hashedTap = `TAP version 13\nnot ok 1 - ${escaped}\n  ---\n  failureType: 'testCodeFailure'\n  code: 'ERR_ASSERTION'\n  ...\n1..1\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n`;
   assert.deepEqual(gapExecutionErrors([hashed], hashedTap).errors, []);
+
+  const parent = 'M1-AC-01: Unchecked example criterion';
+  const gapBreak = 'M1-AC-01 break-it: still a gap';
+  const shippedBreak = 'M1-AC-01 break-it: already shipped';
+  const mixed = {
+    id: 'M1-AC-01',
+    suite: 'gap',
+    text: 'Unchecked example criterion',
+    breakIt: [gapBreak, { title: shippedBreak, suite: 'pass' }],
+  };
+  const mixedTap = `TAP version 13
+not ok 1 - ${parent}
+  ---
+  failureType: 'testCodeFailure'
+  code: 'ERR_ASSERTION'
+  ...
+not ok 2 - ${gapBreak}
+  ---
+  failureType: 'testCodeFailure'
+  code: 'ERR_ASSERTION'
+  ...
+1..2
+# tests 2
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+`;
+  assert.deepEqual(gapExecutionErrors([mixed], mixedTap).errors, []);
+  const gapBreakPasses = mixedTap.replace(`not ok 2 - ${gapBreak}`, `ok 2 - ${gapBreak}`).replace('# pass 0', '# pass 1').replace('# fail 2', '# fail 1');
+  const promoted = gapExecutionErrors([mixed], gapBreakPasses).errors;
+  assert.equal(promoted.length, 1);
+  assert.match(promoted[0], new RegExp(`promoted to the green suite: ${gapBreak}`));
+  assert.equal(promoted.some((error) => error.includes(shippedBreak)), false);
 });
 
 test('changing an existing acceptance file requires a rationale line; additions do not', () => {
@@ -310,6 +345,152 @@ function runStatus(dir) {
       ACCEPTANCE_PACKAGE_JSON: path.join(dir, 'package.json'),
     },
   });
+}
+
+test('a green break-it under an unchecked criterion is enforced, and a gap test that starts passing still fails', () => {
+  const shipped = [
+    'M2-AC-02 break-it: running with no arguments and no config prints one section 6 error object',
+    'M2-AC-04 break-it: a failing run writes only under .visual-eval/ and invents no reference',
+    'M2-AC-05 break-it: --url without --ref runs Gate 1 only and reports Gate 2 as skipped',
+    'M2-AC-18 break-it: passed depends only on the deterministic gates when vision is off',
+    'M2-AC-21 break-it: a blocking passing verdict cannot rescue a deterministic failure',
+  ];
+  const spec = realSpec();
+  for (const title of shipped) {
+    const id = title.slice(0, 'M2-AC-00'.length);
+    const entry = manifest.criteria.find((item) => item.id === id);
+    assert.equal(entry.suite, 'gap', `${id} stays a gap criterion`);
+    assert.ok(spec.includes(`- [ ] ${entry.text}`), `${id} section 8 box stays unchecked`);
+    assert.deepEqual(
+      entry.breakIt.find((item) => item && item.title === title),
+      { title, suite: 'pass' }
+    );
+  }
+
+  const happy = writeShippedFixture();
+  const passingGapBreak = writeShippedFixture({ gapBreakPasses: true });
+  const shippedLeftInGap = writeShippedFixture({ shippedIn: 'gap' });
+  const gapBreakInGreen = writeShippedFixture({ gapBreakIn: 'green' });
+  try {
+    const input = (dir) => ({
+      specText: fs.readFileSync(path.join(dir, 'SPEC.md'), 'utf8'),
+      manifest: loadFixtureManifest(dir),
+      acceptanceDir: path.join(dir, 'tests', 'acceptance'),
+      packageRoot: dir,
+      packageTestScript: JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).scripts.test,
+    });
+    assert.deepEqual(staticAcceptanceErrors(input(happy)).errors, []);
+    const held = runStatus(happy);
+    assert.equal(held.status, 0, `${held.stdout}\n${held.stderr}`);
+    assert.match(held.stdout, /1 green break-it tests are enforced under gap criteria/);
+
+    const surprise = runStatus(passingGapBreak);
+    assert.notEqual(surprise.status, 0);
+    assert.match(`${surprise.stdout}\n${surprise.stderr}`, /M1-AC-01 break-it: still a gap/);
+    assert.match(`${surprise.stdout}\n${surprise.stderr}`, /promoted/);
+
+    const stillGapFile = staticAcceptanceErrors(input(shippedLeftInGap)).errors;
+    assert.ok(stillGapFile.some((error) => error.includes('already shipped') && error.includes('pass file')));
+    const earlyGreen = staticAcceptanceErrors(input(gapBreakInGreen)).errors;
+    assert.ok(earlyGreen.some((error) => error.includes('still a gap') && error.includes('gap file')));
+
+    const manifestText = fs.readFileSync(path.join(happy, 'tests', 'acceptance', 'manifest.mjs'), 'utf8');
+    fs.writeFileSync(
+      path.join(happy, 'tests', 'acceptance', 'manifest.mjs'),
+      manifestText.replace("suite: 'pass' },", "suite: 'nope' },")
+    );
+    assert.ok(staticAcceptanceErrors(input(happy)).errors.some((error) => error.includes('title string or')));
+
+    const checkedSpec = fs.readFileSync(path.join(gapBreakInGreen, 'SPEC.md'), 'utf8').replace(
+      '- [ ] Unchecked example criterion',
+      '- [x] Unchecked example criterion'
+    );
+    fs.writeFileSync(path.join(gapBreakInGreen, 'SPEC.md'), checkedSpec);
+    fs.writeFileSync(
+      path.join(gapBreakInGreen, 'tests', 'acceptance', 'manifest.mjs'),
+      manifestText
+        .replace("suite: 'gap',\n    text: 'Unchecked example criterion'", "suite: 'pass',\n    text: 'Unchecked example criterion'")
+        .replace("{ title: 'M1-AC-01 break-it: already shipped', suite: 'pass' }", "{ title: 'M1-AC-01 break-it: already shipped', suite: 'gap' }")
+    );
+    assert.ok(staticAcceptanceErrors(input(gapBreakInGreen)).errors.some((error) => error.includes('cannot stay in the gap suite')));
+  } finally {
+    for (const dir of [happy, passingGapBreak, shippedLeftInGap, gapBreakInGreen]) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+function loadFixtureManifest(dir) {
+  const source = fs.readFileSync(path.join(dir, 'tests', 'acceptance', 'manifest.mjs'), 'utf8');
+  const exported = source.replace('export const ENFORCED_MILESTONES', 'const ENFORCED_MILESTONES').replace('export const criteria', 'const criteria');
+  return new Function(`${exported}; return { ENFORCED_MILESTONES, criteria };`)();
+}
+
+function writeShippedFixture({ gapBreakPasses = false, shippedIn = 'green', gapBreakIn = 'gap' } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'acc-shipped-'));
+  const acceptanceDir = path.join(dir, 'tests', 'acceptance');
+  fs.mkdirSync(acceptanceDir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SPEC.md'), `# fixture
+
+## 4. Matrix
+
+- [ ] **SIDE-99** \`[M1.9]\` example
+
+## 5. Other
+
+## 8. Acceptance
+
+### SIDE-99 example
+
+- [ ] Unchecked example criterion
+- [x] Checked example criterion
+
+## 9. Order
+
+## 10. End
+`);
+  fs.writeFileSync(path.join(dir, 'AGENTS.md'), '# fixture\n');
+  fs.writeFileSync(
+    path.join(acceptanceDir, 'manifest.mjs'),
+    `export const ENFORCED_MILESTONES = ['M1'];
+export const criteria = [
+  {
+    id: 'M1-AC-01',
+    milestone: 'M1',
+    suite: 'gap',
+    text: 'Unchecked example criterion',
+    breakIt: [
+      'M1-AC-01 break-it: still a gap',
+      { title: 'M1-AC-01 break-it: already shipped', suite: 'pass' },
+    ],
+  },
+  { id: 'M1-AC-02', milestone: 'M1', suite: 'pass', text: 'Checked example criterion', breakIt: [] },
+];
+`
+  );
+  const header = "import test from 'node:test';\nimport assert from 'node:assert/strict';\n";
+  const shippedBody = "test('M1-AC-01 break-it: already shipped', () => {\n  assert.equal(1, 1);\n});\n";
+  const gapBreakBody = `test('M1-AC-01 break-it: still a gap', () => {\n  assert.equal(1, ${gapBreakPasses ? 1 : 2});\n});\n`;
+  const greenParts = [
+    `${header}test('M1-AC-02: Checked example criterion', () => {\n  assert.equal(1, 1);\n});\n`,
+  ];
+  const gapParts = [
+    `${header}test('M1-AC-01: Unchecked example criterion', () => {\n  assert.equal(1, 2);\n});\n`,
+  ];
+  if (shippedIn === 'green') greenParts.push(shippedBody);
+  else gapParts.push(shippedBody);
+  if (gapBreakIn === 'gap') gapParts.push(gapBreakBody);
+  else greenParts.push(gapBreakBody);
+  fs.writeFileSync(path.join(acceptanceDir, 'green.test.mjs'), greenParts.join('\n'));
+  fs.writeFileSync(path.join(acceptanceDir, 'gap.pending.mjs'), gapParts.join('\n'));
+  fs.writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify({
+      type: 'module',
+      scripts: { test: 'node --test tests/acceptance/green.test.mjs && node acceptance-status.mjs' },
+    })
+  );
+  return dir;
 }
 
 test('verify.mjs and CI keep the acceptance gate wired', () => {

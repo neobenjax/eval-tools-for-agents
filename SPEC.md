@@ -25,7 +25,7 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 - Telemetry (`src/telemetry.mjs`): append-only `.visual-eval/telemetry.jsonl` with `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`.
 - Stdout today is one JSON object: `schemaVersion`, `passed`, `exitCode`, `iteration`, `durationMs`, `error`, `findings`, `gates`, `artifacts`, `telemetry`. Exit `0` when all gates pass, exit `1` when they do not. All runtime and engine failures in `bin/pixel-gate.mjs` are caught and print the Section 6 JSON report with telemetry. Commander option-parsing failures print the Section 6 JSON envelope, and `--help` and `--version` are the remaining non-JSON exits.
 - Animations, transitions, and the caret are forced to zero duration before capture. The run waits on `document.fonts.ready`.
-- Tests (20/20 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`. That file is the engine suite only. Milestone acceptance is separate (section 13): M1-AC-01 through M1-AC-15, M2-AC-01 through M2-AC-37, and M3-AC-04 are green; M2b-AC-01 through M2b-AC-59 and M3-AC-01 through M3-AC-03 are gap suites.
+- Tests (22/22 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`. That file is the engine suite only. Milestone acceptance is separate (section 13): M1-AC-01 through M1-AC-15, M2-AC-01 through M2-AC-37, and M3-AC-04 are green; M2b-AC-01 through M2b-AC-59 and M3-AC-01 through M3-AC-03 are gap suites.
 
 That engine is the core. PR #16 added the Section 6 report (`M1-AC-09` through `M1-AC-15`), and Milestone 2 (`M2-AC-01` through `M2-AC-37`) delivers the global CLI, per-project config, spec intake, Gate 3 static audit and scenario runner, optional vision pass, cross-harness `SKILL.md`, installer, and harness smoke checks. Milestone 2b has its own gap suite (`M2b-AC-01` through `M2b-AC-59`).
 
@@ -93,7 +93,7 @@ M3 (SIDE-23) and a blocking vision verdict are not required for this list.
 
 ## 4. Linear-Synced Milestone & Task Matrix (1:1 `SIDE-XX` Parity)
 
-Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18`) and PR #10 (`SIDE-16`) are merged to `main` and `Approved` in Linear, so all five are checked (`[x]`). PR #16 merged the section 6 report and its section 8 boxes are checked (M1-AC-09 through M1-AC-15, manifest `suite: "pass"`). The section 4 box for that row stays `[ ]`: this file checks a matrix key only when Linear is `Approved`, and that issue is `In Review`.
+Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18`), PR #10 (`SIDE-16`), and PR #16 (`SIDE-24`) are merged to `main` and `Approved` in Linear, so all six are checked (`[x]`), and the section 8 boxes for `SIDE-16` and `SIDE-24` are checked (`M1-AC-01` through `M1-AC-15`, manifest `suite: "pass"`).
 
 ### Milestone 0: Repo Bootstrap & Linear Sync
 
@@ -116,7 +116,7 @@ PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) and PR #10 (`feat/SIDE-16-wireframe-
 
 PR #16 is on `main`. Section 8 for this row is fully checked, so section 13 treats M1-AC-09 through M1-AC-15 as the green suite, not as gaps. Do not re-implement the report. Do not check the matrix box below until Linear is `Approved`.
 
-- [ ] **SIDE-24** `[M1.6]` Versioned agent report schema on every exit *(Depends on: SIDE-18 · In Review)*
+- [x] **SIDE-24** `[M1.6]` Versioned agent report schema on every exit *(Depends on: SIDE-18 · Approved)*
 
 ### Milestone 2: Cross-Harness Skill, Spec Intake & Gate 3
 
@@ -563,7 +563,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 Linear `blockedBy` relations match Section 4:
 
 1. PR #2 and PR #10 merged (`SIDE-14`, `SIDE-15`, `SIDE-16`, `SIDE-17`, `SIDE-18` `Approved`).
-2. **SIDE-24** report schema (`M1.6`). On `main` after PR #16. Section 8 is checked and M1-AC-09 through M1-AC-15 are green. The section 4 box stays `[ ]` until Linear is `Approved` (stage `In Review`). `SIDE-20` and `SIDE-23` both read the report.
+2. **SIDE-24** report schema (`M1.6`). On `main` after PR #16. Section 8 is checked, M1-AC-09 through M1-AC-15 are green, and the section 4 box is checked (`Approved` in Linear). `SIDE-20` and `SIDE-23` both read the report.
 3. **SIDE-25** global install and per-project config (`M2.0a`).
 4. **SIDE-26** spec intake (`M2.0b`) and **SIDE-19** (static audit and scenario runner), in the same stage. Includes the section 5 determinism pass: committed PNGs, pinned font, aborted non-fixture network, `ubuntu-latest` as the pixel bar, `windows-latest` CI satisfying the Section 5 Windows v1 requirement.
 5. **SIDE-20** skill, then **SIDE-21** installer, then **SIDE-22** smoke checklist.

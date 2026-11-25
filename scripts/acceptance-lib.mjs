@@ -176,33 +176,37 @@ export function listAcceptanceSources(dir) {
   return files.sort();
 }
 
-const TITLE_CALL = /\b(?:test|serialTest)\(\s*'/g;
+const TITLE_START = /\b(?:test|serialTest)\(\s*(?=['"`])/g;
 
 /**
- * Read one single-quoted JavaScript string starting at `source[start]` (the opening quote).
- * Supports the escapes a criterion title needs (`\'`, `\\`, and `\uXXXX`) so the indexed
- * title equals the string the test runner executes.
+ * Decode one JS string literal starting at `index` (the opening quote).
+ * Section 8 criteria contain apostrophes, double quotes, and backticks, so a
+ * title may be a single-quoted, double-quoted, or template literal, with escapes
+ * (\', \", \`, \\, \n, \r, \t, \uXXXX).
+ * Template interpolation is rejected so a title cannot hide part of its text.
  */
-function readJsSingleQuoted(source, start) {
-  if (source[start] !== "'") return null;
-  let value = '';
-  for (let i = start + 1; i < source.length; i++) {
+export function readJsString(source, index) {
+  const quote = source[index];
+  if (quote !== "'" && quote !== '"' && quote !== '`') return null;
+  let out = '';
+  for (let i = index + 1; i < source.length; i++) {
     const ch = source[i];
     if (ch === '\\') {
       const next = source[i + 1];
-      if (next === undefined) return null;
+      if (next == null) return null;
       if (next === 'u' && /^[0-9a-fA-F]{4}/.test(source.slice(i + 2, i + 6))) {
-        value += String.fromCharCode(Number.parseInt(source.slice(i + 2, i + 6), 16));
+        out += String.fromCharCode(Number.parseInt(source.slice(i + 2, i + 6), 16));
         i += 5;
         continue;
       }
-      const simple = { n: '\n', r: '\r', t: '\t', '\\': '\\', "'": "'", '"': '"' };
-      value += Object.prototype.hasOwnProperty.call(simple, next) ? simple[next] : next;
+      const simple = { n: '\n', r: '\r', t: '\t', '\\': '\\', "'": "'", '"': '"', '`': '`' };
+      out += Object.prototype.hasOwnProperty.call(simple, next) ? simple[next] : next;
       i += 1;
       continue;
     }
-    if (ch === "'") return { value, end: i + 1 };
-    value += ch;
+    if (quote === '`' && ch === '$' && source[i + 1] === '{') return null;
+    if (ch === quote) return out;
+    out += ch;
   }
   return null;
 }
@@ -223,14 +227,13 @@ export function indexAcceptanceSources(files) {
         errors.push(`${file} has a test without an assert: ${chunk.slice(0, 80)}`);
       }
     }
-    for (const match of source.matchAll(TITLE_CALL)) {
-      const quoteAt = match.index + match[0].length - 1;
-      const parsed = readJsSingleQuoted(source, quoteAt);
-      if (!parsed) {
-        errors.push(`${file} has a test title that is not a closed single-quoted string.`);
+    for (const match of source.matchAll(TITLE_START)) {
+      const title = readJsString(source, match.index + match[0].length);
+      if (title == null) {
+        errors.push(`${file} has a test title that is not a plain string literal.`);
         continue;
       }
-      tests.push({ title: parsed.value, file, kind });
+      tests.push({ title, file, kind });
     }
   }
   return { tests, errors };

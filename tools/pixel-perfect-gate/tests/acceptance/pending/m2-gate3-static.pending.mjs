@@ -1,5 +1,13 @@
 /**
- * SIDE-19 (M2.1) Gate 3 static audit. `pixel-gate --url <page> --gate3-static` scans one page.
+ * M2.1 Gate 3 static-audit gap tests. Every test fails with ERR_ASSERTION until the product meets it.
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are gaps. ENFORCED_MILESTONES is M1 and M2.
+ * Promote this file to tests/acceptance/m2/*.test.mjs with the section 8 box and manifest suite "pass"
+ * in the same change (SPEC.md section 13). Section 6: schemaVersion 1; gates.gate1/gate2/gate3;
+ * findings[].id is the stable branch key; error is null or { message }; a skipped gate is
+ * { passed: true, skipped: true, reason }; --help and --version are the only non-JSON exits.
+ * Playwright is pinned to 1.65.1. mismatchPct blocks on ubuntu-latest; Windows and macOS report it
+ * (guard process.platform !== "win32"). Editing this file requires "Acceptance-test change rationale:".
+ * `pixel-gate --url <page> --gate3-static` scans one page.
  * Rule tokens are fixed: no-accessible-name, dead-href, covered-target, no-label.
  * Findings are tied to the exact fixture element by resolving each finding's selector on the live page.
  */

@@ -14,7 +14,18 @@ node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --r
 
 ## Milestone acceptance
 
-Green tests: `tests/acceptance/*.test.mjs`. Gap tests (expected to fail until the criterion is met): `tests/acceptance/pending/*.pending.mjs`. The map is `tests/acceptance/manifest.mjs`. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. See repo `SPEC.md` section 13. Milestone 2 tests are in place as a gap suite under `tests/acceptance/pending/` (promoting to `tests/acceptance/m2/` as features land).
+`ENFORCED_MILESTONES` is `M1` and `M2` (`tests/acceptance/manifest.mjs`). A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest` (`SPEC.md` section 13).
+
+- **M1 green:** M1-AC-01 through M1-AC-15 in `tests/acceptance/*.test.mjs` (`suite: "pass"`). No M1 criteria remain in `pending/`.
+- **M2 gap suite:** M2-AC-01 through M2-AC-37 stay unchecked. Their own tests in `tests/acceptance/pending/*.pending.mjs` must fail with `ERR_ASSERTION`. `node scripts/acceptance-status.mjs` exits 0 while every remaining gap test fails that way, and exits 1 if a gap is missing, skipped, crashes, or starts passing. `npm test` does not invoke a pending file directly. When a gap break-it starts passing before its criterion, move it unchanged to a green `*.test.mjs` and register `{ title, suite: "pass" }`, leaving the section 8 box unchecked. M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, and M2-AC-21 are enforced that way in `tests/acceptance/m2/m2-shipped-break-its.test.mjs`.
+- **Promote** a pending file when its assertions pass: move it to `tests/acceptance/m2/*.test.mjs`, check the matching `SPEC.md` section 8 boxes, set manifest `suite` to `"pass"`, and list the file in `package.json` `scripts.test`, in the same change. Do not edit the assertions to go green.
+- A PR that edits an existing file under `tests/`, or the acceptance gate, needs a body line `Acceptance-test change rationale:` followed by why. A blank template line, the template hint, and `n/a` do not count.
+
+## Report, pixels, and the Playwright pin
+
+- **Section 6.** Every exit except `--help` and `--version` prints one JSON object: `schemaVersion` `1`, `gates.gate1` / `gates.gate2` / `gates.gate3`, `findings[].id` as the stable branch key, `error` `null` on a finished run and `{ "message" }` when the run cannot finish, and a skipped gate `{ "passed": true, "skipped": true, "reason" }`.
+- **Playwright** is pinned to exact `1.65.1` (no caret) in this package. CI and the installer install Chromium for that version.
+- **Pixels (`SPEC.md` section 5).** `mismatchPct` blocks on `ubuntu-latest`. Windows and macOS report it without blocking. M2-AC-09 guards the blocking assert with `process.platform !== 'win32'`. Gate 1, exit codes, and the section 6 shape still have to pass on Windows.
 
 ## Architecture
 

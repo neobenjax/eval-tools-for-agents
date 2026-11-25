@@ -1,3 +1,8 @@
+# Pixel mismatchPct blocks on ubuntu-latest only (SPEC.md section 5). Windows runs install,
+# --help, Gate 1, the scenario runner, and the section 6 schema, and reports mismatchPct
+# without that pixel bar. Playwright is pinned to 1.65.1. M1-AC-01..15 are the green suite.
+# M2-AC-01..37 stay unchecked gap criteria. Five break-its (M2-AC-02, 04, 05, 18, 21) are
+# enforced as green { title, suite: "pass" } tests under those unchecked criteria.
 name: CI
 
 on:

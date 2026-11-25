@@ -1,13 +1,17 @@
 # Milestone 2 acceptance tests
 
-The M2 suite is written as a gap suite: `M2-AC-01` to `M2-AC-37` (and their break-it tests) live in `../pending/m2-*.pending.mjs`. They fail with `ERR_ASSERTION` until the product meets them. `node scripts/acceptance-status.mjs` runs them and exits 0 only while every one fails that way.
+M1-AC-01 through M1-AC-15 are green (`../`). There is no M1 gap file left. M2-AC-01 through M2-AC-37 stay unchecked. Their own tests, and the break-its that still fail, live in `../pending/m2-*.pending.mjs` and fail with `ERR_ASSERTION` until the product meets them. `node scripts/acceptance-status.mjs` runs the gap files and exits 0 only while every remaining gap test fails that way. A missing, skipped, crashing, or passing gap test makes that command exit 1. `ENFORCED_MILESTONES` is `M1` and `M2`. `npm test` must not invoke a pending file directly.
+
+Five break-its are already enforced as green tests under still-unchecked criteria: M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, and M2-AC-21, unchanged in `m2-shipped-break-its.test.mjs`, registered `{ title, suite: "pass" }`. When a gap break-it starts passing before its criterion, move it unchanged into a green `*.test.mjs` in this directory and register it the same way. Leave the section 8 box unchecked until that criterion's own test passes (`SPEC.md` section 13).
+
+Section 6 report, on every exit except `--help` and `--version`: `schemaVersion` `1`, `gates.gate1` / `gates.gate2` / `gates.gate3`, `findings[].id` as the stable branch key, `error` `null` or `{ "message" }`, and a skipped gate `{ "passed": true, "skipped": true, "reason" }`. Playwright is pinned to `1.65.1`. Pixel `mismatchPct` blocks on `ubuntu-latest`; Windows and macOS report it without blocking (`SPEC.md` section 5). M2-AC-09 guards the blocking assert with `process.platform !== 'win32'`.
 
 Interfaces the tests pin are listed in `SPEC.md` section 7 ("Interfaces pinned by the M2 acceptance tests"). Shared helpers: `../m2-helpers.mjs` (servers, temp repos, CLI runners) and `../m2-skill-checks.mjs` (SKILL.md text checks). Fixtures: `tests/fixtures/m2/`.
 
 When you implement an M2 issue:
 
 - Make its gap tests pass. Do not edit the assertions; change the product (`SPEC.md` section 13).
-- Move each passing test from `../pending/*.pending.mjs` into this directory as a `*.test.mjs` file, keeping the title `<id>: <criterion text verbatim>`. Break-it tests move with their criterion.
+- Move each passing criterion test from `../pending/*.pending.mjs` into this directory as a `*.test.mjs` file, keeping the title `<id>: <criterion text verbatim>`. A break-it that starts passing before its criterion moves unchanged on its own, registered `{ title, suite: "pass" }`, and the section 8 box stays unchecked. When the criterion itself passes, its remaining break-its move with it.
 - Check the matching section 8 boxes (`- [x]`) and flip `suite` to `'pass'` in `../manifest.mjs` in the same change.
 - List each new green file in `tools/pixel-perfect-gate/package.json` `scripts.test`.
 - A milestone is done only when every test passes on both `windows-latest` and `ubuntu-latest`.

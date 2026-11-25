@@ -1,9 +1,17 @@
 /**
- * Green suite for the milestone 1 engine criteria.
- * These asserts read the Section 6 stdout (`json.gates.gate1`, `json.gates.gate2`, with errors asserted via `error.message`).
- * Section 6 uses `gates.*`, `error: null` on a finished run, and skipped-gate objects for unrun gates.
- * When a gap test is promoted, update those paths in the same commit and keep the behavioral asserts
- * (exit code, landmark id, mismatchPct, dimension text).
+ * Green suite for the milestone 1 engine criteria (M1-AC-01 through M1-AC-08).
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are the gap suite
+ * (`tests/acceptance/pending/`, `ERR_ASSERTION` until promoted). ENFORCED_MILESTONES is M1 and M2.
+ * Promote a pending file to `tests/acceptance/m2/*.test.mjs`, check the section 8 box, and set
+ * manifest suite to "pass" in the same change (SPEC.md section 13).
+ * Section 6 stdout: schemaVersion 1; gates.gate1, gates.gate2, gates.gate3; findings[].id is the
+ * stable branch key; error is null on a finished run and { message } when the run cannot finish;
+ * a skipped gate is { passed: true, skipped: true, reason }. --help and --version are the only non-JSON exits.
+ * These asserts read json.gates.gate1 and json.gates.gate2, and errors via error.message.
+ * Keep the behavioral asserts (exit code, landmark id, mismatchPct, dimension text).
+ * Playwright is pinned to 1.65.1. mismatchPct blocks on ubuntu-latest; Windows and macOS report it
+ * without blocking (M2-AC-09 guards that assert with process.platform !== "win32").
+ * Editing this file requires a PR-body line "Acceptance-test change rationale:" even for a comment-only edit.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

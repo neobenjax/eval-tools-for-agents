@@ -1,5 +1,16 @@
 /**
- * SIDE-27 (M2.1b) optional vision pass, off by default and advisory.
+ * M2.1b optional vision-pass gap tests. Every test in this file fails with ERR_ASSERTION until the
+ * product meets it. When a gap break-it starts passing before its criterion, move it unchanged to a
+ * green *.test.mjs and register { title, suite: "pass" }, leaving the section 8 box unchecked.
+ * M2-AC-18 and M2-AC-21 are that case, in ../m2/m2-shipped-break-its.test.mjs (SPEC.md section 13).
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are gaps. ENFORCED_MILESTONES is M1 and M2.
+ * Promote to tests/acceptance/m2/*.test.mjs, check the section 8 box, and set suite to "pass" together
+ * (SPEC.md section 13). Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable
+ * branch key; error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits. Playwright is pinned to 1.65.1. mismatchPct blocks
+ * on ubuntu-latest; Windows and macOS report it (guard process.platform !== "win32").
+ * Editing this file requires "Acceptance-test change rationale:" in the PR body.
+ * Optional vision pass, off by default and advisory.
  * Config key: vision { enabled, blocking } (both default false). Flag: --vision-verdict <file>.
  * When enabled, the report exposes `artifacts.composite` and top-level `findings` without opening any model network connection.
  * The verdict becomes the `info` finding `gate2.vision-verdict`; it is `fail` only when blocking

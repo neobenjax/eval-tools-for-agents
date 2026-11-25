@@ -1,5 +1,13 @@
 /**
- * SIDE-22 (M2.4) harness smoke check: tools/pixel-perfect-gate/scripts/harness-smoke.mjs.
+ * M2.4 harness-smoke gap tests. Every test fails with ERR_ASSERTION until the product meets it.
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are gaps. ENFORCED_MILESTONES is M1 and M2.
+ * Promote to tests/acceptance/m2/*.test.mjs, check the section 8 box, and set suite to "pass" together
+ * (SPEC.md section 13). Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable
+ * branch key; error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits. Playwright is pinned to 1.65.1. mismatchPct blocks
+ * on ubuntu-latest; Windows and macOS report it (guard process.platform !== "win32").
+ * Editing this file requires "Acceptance-test change rationale:" in the PR body.
+ * Harness smoke checker: tools/pixel-perfect-gate/scripts/harness-smoke.mjs.
  * CI cannot run Antigravity Desktop, Antigravity CLI, or Cursor. The checker is the scripted part:
  *   --harness <antigravity-desktop|antigravity-cli|cursor|all>
  *   --home <dir>             home directory whose skill destinations are listed

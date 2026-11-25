@@ -378,8 +378,8 @@ test('a green break-it under an unchecked criterion is enforced, and a gap test 
   for (const title of shipped) {
     const id = title.slice(0, 'M2b-AC-00'.length);
     const entry = manifest.criteria.find((item) => item.id === id);
-    assert.equal(entry.suite, 'gap', `${id} stays a gap criterion`);
-    assert.ok(spec.includes(`- [ ] ${entry.text}`), `${id} section 8 box stays unchecked`);
+    assert.equal(entry.suite, 'pass', `${id} is now promoted to pass`);
+    assert.ok(spec.includes(`- [x] ${entry.text}`), `${id} section 8 box is checked`);
     assert.deepEqual(
       entry.breakIt.find((item) => item && item.title === title),
       { title, suite: 'pass' }

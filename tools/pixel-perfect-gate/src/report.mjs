@@ -109,6 +109,10 @@ export function buildGate1Findings(gate1) {
     });
   }
 
+  for (const extra of gate1.extraFindings || []) {
+    findings.push(extra);
+  }
+
   return findings;
 }
 
@@ -121,6 +125,7 @@ export function buildReport({
   gate2Result = null,
   gate3Result = null,
   telemetryPath = null,
+  loop = null,
 }) {
   const isPassed = Boolean(passed) && !errorMessage;
   const gate1Findings = buildGate1Findings(gate1Result);
@@ -132,7 +137,7 @@ export function buildReport({
   if (telemetryPath) rawArtifacts.telemetry = telemetryPath;
   const artifacts = Object.keys(rawArtifacts).length > 0 ? rawArtifacts : null;
 
-  return {
+  const report = {
     schemaVersion: 1,
     passed: isPassed,
     exitCode: isPassed ? 0 : 1,
@@ -160,4 +165,8 @@ export function buildReport({
     artifacts,
     telemetry: telemetryPath ?? null,
   };
+  if (loop) {
+    report.loop = loop;
+  }
+  return report;
 }

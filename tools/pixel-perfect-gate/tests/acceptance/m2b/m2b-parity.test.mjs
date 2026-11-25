@@ -12,6 +12,7 @@ import {
   copyPrototype,
   findingIds,
   findings,
+  fontPath,
   freshDir,
   makeWork,
   pixelSourceOfTruth,
@@ -31,6 +32,7 @@ function parityRepo(name, { referenceHtml, targetHtml, steps, referenceKind = 'h
   fs.writeFileSync(path.join(repo, 'reference.html'), referenceHtml);
   fs.writeFileSync(path.join(repo, 'target.html'), targetHtml);
   fs.mkdirSync(path.join(repo, 'fonts'), { recursive: true });
+  fs.copyFileSync(fontPath, path.join(repo, 'fonts', 'codicon.ttf'));
   writeJson(path.join(repo, 'scenarios.json'), scenario(steps));
   const reference = referenceKind === 'html-file'
     ? { kind: 'html-file', source: path.join(repo, 'reference.html') }

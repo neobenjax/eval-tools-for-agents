@@ -22,7 +22,7 @@ export function resolveSafeOutDir(cwd, outOpt = '.visual-eval', { allowTestDir =
  * Load and validate `pixel-gate.config.json` (or `--config <file>`).
  * Returns `{ configPath, config }` or `null` when no config file is requested or present.
  */
-export function loadProjectConfig(cwd, configOpt = null) {
+export function loadProjectConfig(cwd, configOpt = null, { isCapture = false } = {}) {
   let configPath = null;
   if (configOpt) {
     configPath = path.resolve(cwd, configOpt);
@@ -47,8 +47,21 @@ export function loadProjectConfig(cwd, configOpt = null) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`Invalid config in ${configPath}: expected a JSON object`);
   }
-  if (typeof raw.baseUrl !== 'string' || !raw.baseUrl.trim()) {
+  const targetKind = raw.target?.kind;
+  const baseUrlOptional =
+    isCapture ||
+    targetKind === 'static' ||
+    targetKind === 'wordpress' ||
+    targetKind === 'dev-server' ||
+    (Array.isArray(raw.routes) && raw.routes.length > 0 && raw.routes.every((r) => r?.reference?.kind));
+  if (!baseUrlOptional && (typeof raw.baseUrl !== 'string' || !raw.baseUrl.trim())) {
     throw new Error(`Invalid config in ${configPath}: missing required field "baseUrl"`);
+  }
+  if (raw.loop?.maxIterations !== undefined && raw.loop?.maxIterations !== null) {
+    const maxIter = Number(raw.loop.maxIterations);
+    if (!Number.isInteger(maxIter) || maxIter < 1 || maxIter > 5) {
+      throw new Error(`Invalid config in ${configPath}: maxIterations (${raw.loop.maxIterations}) cannot exceed 5`);
+    }
   }
   if (!Array.isArray(raw.viewports) || raw.viewports.length === 0) {
     throw new Error(`Invalid config in ${configPath}: missing required non-empty array "viewports"`);

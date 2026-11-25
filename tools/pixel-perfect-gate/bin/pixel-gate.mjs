@@ -16,10 +16,35 @@ import { resolveSafeOutDir, loadProjectConfig, loadScenariosFile } from '../src/
 import { checkAcceptanceMapping, resolveKeyedReferencePath } from '../src/intake.mjs';
 import { runInteractionAudit } from '../src/interaction-audit.mjs';
 import { runScenario } from '../src/scenario-runner.mjs';
+import { computeLoop, resolveRunId, validateMaxIterations } from '../src/loop.mjs';
+import {
+  captureSingleRouteBundle,
+  checkUrlCopyrightAck,
+  getBundleDir,
+  readBundleManifest,
+  sha256File,
+  verifyBundleIntegrity,
+} from '../src/reference-bundle.mjs';
+import { startStaticServer, startDevServer } from '../src/targets.mjs';
+import { runPwaAudit } from '../src/pwa-audit.mjs';
+import { runParityComparison } from '../src/parity-runner.mjs';
+import { runStyleParity } from '../src/style-parity.mjs';
+import {
+  startWordPressTarget,
+  hideWpAdminBar,
+  runWordPressStructureCheck,
+  validateWordPressConfig,
+} from '../src/wordpress.mjs';
+import { detectImageFormat, prepareScreenshotBundle } from '../src/screenshot-intake.mjs';
+import { prepareDesignFileBundle } from '../src/design-file.mjs';
 
 const startMs = Date.now();
 const cwd = process.cwd();
 const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const isReferenceCapture = process.argv[2] === 'reference' && process.argv[3] === 'capture';
+const parseArgv = isReferenceCapture
+  ? [process.argv[0], process.argv[1], ...process.argv.slice(4)]
+  : process.argv;
 
 program
   .name('pixel-gate')
@@ -46,13 +71,17 @@ program
   .option('--threshold <number>', 'Pixelmatch color sensitivity (0-1)', '0.1')
   .option('--max-diff <number>', 'Max allowed mismatch percentage before failing', '0.5')
   .option('--iteration <number>', 'Current Agent Loop iteration (1-5)', '1')
+  .option('--run-id <id>', 'Audit loop run identifier')
+  .option('--max-iterations <number>', 'Max loop iterations (hard cap 5)')
+  .option('--refresh', 'Re-capture frozen references', false)
+  .option('--acknowledge-copyright', 'Acknowledge copyright disclaimer for url capture', false)
   .option('--model <name>', 'Optional AI model identifier for telemetry', 'unknown')
   .option('--harness <name>', 'Optional harness identifier (antigravity|cursor|cli)', 'cli')
   .exitOverride();
 
 let opts = {};
 try {
-  program.parse();
+  program.parse(parseArgv);
   opts = program.opts();
 } catch (err) {
   if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
@@ -71,11 +100,20 @@ try {
       if (Number.isInteger(n) && n >= 1 && n <= 5) parsedIter = n;
     }
   }
+  const errMsg = err?.message || String(err);
+  const loop = computeLoop({
+    runId: resolveRunId(program.opts()?.runId, null),
+    iteration: parsedIter,
+    passed: false,
+    errorMessage: errMsg,
+    blocked: true,
+  });
   const report = buildReport({
     passed: false,
     iteration: parsedIter,
     durationMs: Date.now() - startMs,
-    errorMessage: err?.message || String(err),
+    errorMessage: errMsg,
+    loop,
   });
   fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
   process.exit(report.exitCode);
@@ -90,6 +128,7 @@ let gate3Result = null;
 let dpr = 1;
 let iteration = 1;
 let safeOutDir = null;
+let runId = null;
 
 function isExplicit(name) {
   return program.getOptionValueSource(name) !== 'default' && program.getOptionValueSource(name) !== undefined;
@@ -150,6 +189,17 @@ function readVisionVerdict(verdictPath) {
     throw new Error('Invalid vision verdict schema: expected { "passed": boolean, "text": string }');
   }
   return parsed;
+}
+
+function redactSecrets(text) {
+  let out = String(text ?? '');
+  for (const key of ['WORDPRESS_APP_PASSWORD', 'FIGMA_TOKEN']) {
+    const val = process.env[key];
+    if (val && val.length > 0) {
+      out = out.split(val).join('[REDACTED]');
+    }
+  }
+  return out;
 }
 
 function toRelArtifact(absPath) {
@@ -233,7 +283,7 @@ async function freezePage(page) {
 
 function mergeGate1(base, next) {
   if (!base) return next;
-  return {
+  const merged = {
     passed: Boolean(base.passed && next.passed),
     viewport: next.viewport || base.viewport,
     consoleErrors: [...(base.consoleErrors || []), ...(next.consoleErrors || [])],
@@ -243,10 +293,20 @@ function mergeGate1(base, next) {
     clippedTextElements: [...(base.clippedTextElements || []), ...(next.clippedTextElements || [])],
     overlappingSiblings: [...(base.overlappingSiblings || []), ...(next.overlappingSiblings || [])],
     brokenImages: [...(base.brokenImages || []), ...(next.brokenImages || [])],
+    extraFindings: [...(base.extraFindings || []), ...(next.extraFindings || [])],
   };
+  if (next.pwa || base.pwa) merged.pwa = next.pwa || base.pwa;
+  if (next.wordpress || base.wordpress) merged.wordpress = next.wordpress || base.wordpress;
+  if (next.structureCheck || base.structureCheck) merged.structureCheck = next.structureCheck || base.structureCheck;
+  return merged;
 }
 
 try {
+  runId = resolveRunId(opts.runId, null);
+  if (isExplicit('maxIterations')) {
+    validateMaxIterations(opts.maxIterations);
+  }
+
   const iterRaw = String(opts.iteration ?? '1').trim();
   const parsedIteration = Number(iterRaw);
   if (!/^\d+$/.test(iterRaw) || !Number.isInteger(parsedIteration) || parsedIteration < 1 || parsedIteration > 5) {
@@ -257,11 +317,15 @@ try {
   safeOutDir = resolveSafeOutDir(cwd, opts.out, { allowTestDir: Boolean(opts.url && !opts.config) });
   const outRel = toRelArtifact(safeOutDir);
 
-  const loaded = opts.config || !opts.url ? loadProjectConfig(cwd, opts.config || null) : null;
+  const loaded = opts.config || !opts.url ? loadProjectConfig(cwd, opts.config || null, { isCapture: isReferenceCapture }) : null;
   if (!opts.url && !loaded) {
     throw new Error('No --url provided and pixel-gate.config.json not found in current directory.');
   }
   const config = loaded?.config || null;
+  runId = resolveRunId(opts.runId, config);
+  if (config?.loop?.maxIterations !== undefined) {
+    validateMaxIterations(config.loop.maxIterations);
+  }
 
   const dprRaw = isExplicit('dpr') ? String(opts.dpr) : String(config?.dpr ?? opts.dpr ?? '1');
   const parsedDpr = Number(dprRaw.trim());
@@ -330,6 +394,15 @@ try {
           ],
         };
         const durationMs = Date.now() - startMs;
+        const loop = computeLoop({
+          outDir: safeOutDir,
+          runId,
+          iteration,
+          passed: false,
+          errorMessage: errorMsg,
+          findings: gate2Result.findings,
+          blocked: true,
+        });
         const report = buildReport({
           passed: false,
           iteration,
@@ -337,8 +410,10 @@ try {
           errorMessage: errorMsg,
           gate1Result: null,
           gate2Result,
+          loop,
         });
         const telemetryPath = recordTelemetry(outRel, {
+          runId,
           url: opts.url,
           mode,
           dpr,
@@ -349,6 +424,8 @@ try {
           mismatchPct: null,
           durationMs: report.durationMs,
           error: errorMsg,
+          failCount: report.findings.filter((f) => f.severity === 'fail').length,
+          failIds: report.findings.filter((f) => f.severity === 'fail').map((f) => f.id),
           findingIds: report.findings.map((f) => f.id),
           model: opts.model,
           harness: opts.harness,
@@ -524,8 +601,7 @@ try {
         reference: opts.ref,
       };
     }
-  } else {
-    // Config-driven run (routes x viewports, intake mapping, optional --scenario)
+  } else if (isReferenceCapture) {
     process.chdir(safeOutDir);
     try {
       browser = await chromium.launch({
@@ -536,169 +612,636 @@ try {
       process.chdir(cwd);
     }
 
-    if (targetScenario) {
-      let vpWidth = 1440;
-      let vpHeight = 900;
-      if (isExplicit('viewport') && opts.viewport) {
-        const [w, h] = opts.viewport.split('x').map(Number);
-        if (w > 0 && h > 0) {
-          vpWidth = w;
-          vpHeight = h;
-        }
-      }
-      const page = await browser.newPage({
-        viewport: { width: vpWidth, height: vpHeight },
-        deviceScaleFactor: dpr,
-      });
-      await applyNetworkPolicy(page, config.baseUrl, config.allowNetwork);
-      const scenRes = await runScenario({
-        page,
-        scenario: targetScenario,
-        baseUrl: config.baseUrl,
-        outDir: safeOutDir,
-        cwd,
-        defaultTimeoutMs: timeoutMs,
-      });
-      gate3Result = {
-        passed: scenRes.passed,
-        skipped: false,
-        scenarios: [scenRes.scenarioReport],
-        findings: scenRes.findings,
-      };
-    } else {
-      const checks = [];
-      const gate2Findings = [];
-      let allChecksPassed = true;
-      let lastArtifacts = null;
-      let lastMismatchPct = null;
+    const captureFindings = [];
+    let captureBlocked = false;
+    let lastCaptureHtml = null;
 
-      for (const route of config.routes) {
-        const routeUrl = new URL(route.path, config.baseUrl).toString();
-        const routeMasks = Array.isArray(route.masks) ? route.masks : (config.masks || []);
-        const maskSelectors = isExplicit('mask')
-          ? opts.mask.split(',').map((s) => s.trim()).filter(Boolean)
-          : routeMasks;
-
-        for (const vp of config.viewports) {
-          const refPath = resolveKeyedReferencePath(cwd, config.references, route.id, vp.name);
-          const refRel = toRelArtifact(refPath);
-
-          if (!fs.existsSync(refPath)) {
-            if (route.referenceRequired !== false) {
-              allChecksPassed = false;
-              gate2Findings.push({
-                id: `gate2.missing-reference.${route.id}.${vp.name}`,
-                gate: 'gate2',
-                severity: 'fail',
-                selector: '',
-                box: null,
-                text: `Missing required reference PNG at ${refRel}`,
-              });
-            }
-            continue;
-          }
-
-          const refImg = readReferencePng(refPath);
-          const page = await browser.newPage({
-            viewport: { width: vp.width, height: vp.height },
-            deviceScaleFactor: dpr,
-          });
-          const abortedUrls = await applyNetworkPolicy(page, config.baseUrl, config.allowNetwork);
-          const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
-
-          await page.goto(routeUrl, { waitUntil: 'networkidle', timeout: timeoutMs });
-          await freezePage(page);
-
-          const filteredConsoleErrors = consoleErrors.filter((e) => !e.url || !abortedUrls.has(e.url));
-          const filteredNetworkErrors = networkErrors.filter((e) => !abortedUrls.has(e.url));
-          const domAudit = await runLayoutAudit(page);
-          const g1Issues = domAudit.issues;
-          const g1Passed =
-            filteredConsoleErrors.length === 0 &&
-            filteredNetworkErrors.length === 0 &&
-            !g1Issues.horizontalOverflow &&
-            g1Issues.overflowingElements.length === 0 &&
-            g1Issues.clippedTextElements.length === 0 &&
-            g1Issues.overlappingSiblings.length === 0 &&
-            g1Issues.brokenImages.length === 0;
-
-          gate1Result = mergeGate1(gate1Result, {
-            passed: g1Passed,
-            viewport: domAudit.viewport,
-            consoleErrors: filteredConsoleErrors,
-            networkErrors: filteredNetworkErrors,
-            ...g1Issues,
-          });
-
-          const checkDir = path.join(safeOutDir, `${route.id}-${vp.name}`);
-          fs.mkdirSync(checkDir, { recursive: true });
-          const actualPath = path.join(checkDir, 'actual.png');
-          const maskBoxes = await collectMasks(page, maskSelectors, null);
-          await page.screenshot({ path: actualPath, fullPage: Boolean(opts.fullPage) });
-          await page.close();
-
-          const vis = compareVisual({
-            refImg,
-            actualPath,
-            outDir: checkDir,
-            threshold: effectiveThreshold,
-            maxDiff: effectiveMaxDiff,
-            mode,
-            maskBoxes,
+    for (const route of config.routes) {
+      const refKind = route.reference?.kind || 'png';
+      for (const vp of config.viewports) {
+        if (refKind === 'html-file' || refKind === 'url') {
+          const capRes = await captureSingleRouteBundle({
+            cwd,
+            browser,
+            route,
+            viewport: vp,
             dpr,
-            fullPage: Boolean(opts.fullPage),
+            config,
+            safeOutDir,
+            opts,
+            applyNetworkPolicy,
           });
-
-          if (!vis.passed) {
-            allChecksPassed = false;
-            for (const f of vis.findings || []) {
-              gate2Findings.push({ ...f, id: `${f.id}.${route.id}.${vp.name}` });
-            }
+          if (!capRes.ok) {
+            captureBlocked = Boolean(capRes.blocked);
+            if (capRes.finding) captureFindings.push(capRes.finding);
+          } else if (capRes.captureHtmlPath) {
+            lastCaptureHtml = capRes.captureHtmlPath;
           }
-
-          checks.push({
-            route: route.id,
-            viewport: vp.name,
-            reference: refRel,
-            passed: vis.passed,
-            mismatchPct: vis.mismatchPct,
-          });
-          lastMismatchPct = vis.mismatchPct;
-          lastArtifacts = {
-            actual: toRelArtifact(vis.artifacts?.actual),
-            diff: toRelArtifact(vis.artifacts?.diff),
-            composite: toRelArtifact(vis.artifacts?.composite),
-            reference: refRel,
-          };
+        } else if (refKind === 'screenshot') {
+          const shotRes = await prepareScreenshotBundle({ cwd, browser, route, viewport: vp, dpr });
+          if (!shotRes.ok) {
+            captureBlocked = Boolean(shotRes.blocked);
+            if (shotRes.finding) captureFindings.push(shotRes.finding);
+          }
+        } else if (refKind === 'design-file') {
+          const designRes = await prepareDesignFileBundle({ cwd, config, route, viewport: vp, dpr });
+          if (!designRes.ok) {
+            captureBlocked = Boolean(designRes.blocked);
+            if (designRes.finding) captureFindings.push(designRes.finding);
+          }
         }
-      }
-
-      if (checks.length > 0 || gate2Findings.length > 0) {
-        gate2Result = {
-          passed: allChecksPassed,
-          skipped: false,
-          mode,
-          mismatchPct: lastMismatchPct,
-          checks,
-          findings: gate2Findings,
-          artifacts: lastArtifacts,
-        };
-      } else {
-        gate2Result = { passed: true, skipped: true, reason: 'No matching reference PNGs for configured routes' };
-      }
-
-      if (config.acceptance) {
-        const intakeFindings = checkAcceptanceMapping(cwd, config.acceptance, scenariosList);
-        gate3Result = {
-          passed: intakeFindings.length === 0,
-          skipped: false,
-          findings: intakeFindings,
-        };
       }
     }
 
     await browser.close();
     browser = null;
+
+    gate1Result = { passed: true, skipped: true, reason: 'Reference capture only' };
+    gate2Result = {
+      passed: !captureBlocked && captureFindings.every((f) => f.severity !== 'fail'),
+      skipped: false,
+      findings: captureFindings,
+      artifacts: lastCaptureHtml ? { captureHtml: lastCaptureHtml } : null,
+    };
+    gate3Result = { passed: true, skipped: true, reason: 'Reference capture only' };
+  } else {
+    // Config-driven run (routes x viewports, intake mapping, optional --scenario, M2b adapters)
+    if (config.target?.kind === 'wordpress') {
+      validateWordPressConfig(config.target.wordpress || {});
+    }
+
+    let activeTarget = null;
+    if (config.target?.kind === 'static') {
+      activeTarget = await startStaticServer(config.target);
+    } else if (config.target?.kind === 'dev-server') {
+      activeTarget = await startDevServer(config.target, cwd);
+    } else if (config.target?.kind === 'wordpress') {
+      activeTarget = await startWordPressTarget(config.target.wordpress || {}, cwd);
+    }
+
+    try {
+      const effectiveBaseUrl = activeTarget?.baseUrl || config.baseUrl;
+
+      process.chdir(safeOutDir);
+      try {
+        browser = await chromium.launch({
+          args: ['--disable-logging', `--log-file=${path.join(safeOutDir, 'chromium.log')}`],
+          env: { ...process.env, CHROME_LOG_FILE: path.join(safeOutDir, 'chromium.log') },
+        });
+      } finally {
+        process.chdir(cwd);
+      }
+
+      if (config.target?.pwa === true) {
+        const pwaRes = await runPwaAudit(browser, effectiveBaseUrl, applyNetworkPolicy, config.allowNetwork);
+        gate1Result = mergeGate1(gate1Result, {
+          passed: pwaRes.findings.length === 0,
+          viewport: { width: config.viewports[0].width, height: config.viewports[0].height },
+          consoleErrors: [],
+          networkErrors: [],
+          horizontalOverflow: false,
+          overflowingElements: [],
+          clippedTextElements: [],
+          overlappingSiblings: [],
+          brokenImages: [],
+          pwa: pwaRes.pwa,
+          extraFindings: pwaRes.findings,
+        });
+      }
+
+      if (config.target?.kind === 'wordpress') {
+        const wpStruct = await runWordPressStructureCheck({
+          baseUrl: effectiveBaseUrl,
+          wpCfg: config.target.wordpress || {},
+        });
+        gate1Result = mergeGate1(gate1Result, {
+          passed: true,
+          viewport: { width: config.viewports[0].width, height: config.viewports[0].height },
+          consoleErrors: [],
+          networkErrors: [],
+          horizontalOverflow: false,
+          overflowingElements: [],
+          clippedTextElements: [],
+          overlappingSiblings: [],
+          brokenImages: [],
+          structureCheck: wpStruct.structureCheck,
+          wordpress: wpStruct.credentialSource ? { credentialSource: wpStruct.credentialSource } : undefined,
+          extraFindings: wpStruct.findings,
+        });
+      }
+
+      if (targetScenario) {
+        let vpWidth = 1440;
+        let vpHeight = 900;
+        if (isExplicit('viewport') && opts.viewport) {
+          const [w, h] = opts.viewport.split('x').map(Number);
+          if (w > 0 && h > 0) {
+            vpWidth = w;
+            vpHeight = h;
+          }
+        }
+        const page = await browser.newPage({
+          viewport: { width: vpWidth, height: vpHeight },
+          deviceScaleFactor: dpr,
+        });
+        await applyNetworkPolicy(page, effectiveBaseUrl, config.allowNetwork);
+        const scenRes = await runScenario({
+          page,
+          scenario: targetScenario,
+          baseUrl: effectiveBaseUrl,
+          outDir: safeOutDir,
+          cwd,
+          defaultTimeoutMs: timeoutMs,
+        });
+        gate3Result = {
+          passed: scenRes.passed,
+          skipped: false,
+          scenarios: [scenRes.scenarioReport],
+          findings: scenRes.findings,
+        };
+      } else {
+        const checks = [];
+        const gate2Findings = [];
+        let allChecksPassed = true;
+        let lastArtifacts = null;
+        let lastMismatchPct = null;
+        let lastAdvisory = null;
+        let lastStyleMeta = null;
+        let lastCaptureHtml = null;
+
+        for (const route of config.routes) {
+          const routeUrl = new URL(route.path, effectiveBaseUrl).toString();
+          const routeMasks = Array.isArray(route.masks) ? route.masks : (config.masks || []);
+          const maskSelectors = isExplicit('mask')
+            ? opts.mask.split(',').map((s) => s.trim()).filter(Boolean)
+            : routeMasks;
+          const refKind = route.reference?.kind || 'png';
+          const targetSelector = route.selector || config.target?.selector || (config.target?.kind === 'wordpress' ? 'main' : null);
+
+          for (const vp of config.viewports) {
+            let refPath = null;
+            let refRel = null;
+            let bundleDir = null;
+            let tier = 'A';
+            let expectedLandmarksPath = null;
+
+            if (refKind === 'png') {
+              if (route.reference?.source) {
+                const explicitSrc = path.resolve(cwd, route.reference.source);
+                if (fs.existsSync(explicitSrc)) {
+                  const fmt = detectImageFormat(fs.readFileSync(explicitSrc));
+                  if (fmt !== 'png') {
+                    allChecksPassed = false;
+                    throw new Error(`Invalid PNG reference (${fmt}) for kind "png" on route "${route.id}"`);
+                  }
+                  refPath = explicitSrc;
+                }
+              } else {
+                refPath = resolveKeyedReferencePath(cwd, config.references, route.id, vp.name);
+              }
+              refRel = refPath ? toRelArtifact(refPath) : '';
+
+              if (!refPath || !fs.existsSync(refPath)) {
+                if (route.referenceRequired !== false) {
+                  allChecksPassed = false;
+                  gate2Findings.push({
+                    id: `gate2.missing-reference.${route.id}.${vp.name}`,
+                    gate: 'gate2',
+                    severity: 'fail',
+                    selector: '',
+                    box: null,
+                    text: `Missing required reference PNG at ${refRel || `${route.id}/${vp.name}.png`}`,
+                  });
+                  continue;
+                }
+                if (!config.target?.kind || config.target.kind === 'url') continue;
+                const targetContext = await browser.newContext({
+                  viewport: { width: vp.width, height: vp.height },
+                  deviceScaleFactor: dpr,
+                  serviceWorkers: 'block',
+                  reducedMotion: 'reduce',
+                });
+                const page = await targetContext.newPage();
+                const abortedUrls = await applyNetworkPolicy(page, effectiveBaseUrl, config.allowNetwork);
+                const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
+                await page.goto(routeUrl, { waitUntil: 'networkidle', timeout: timeoutMs });
+                if (config.target?.kind === 'wordpress') {
+                  await hideWpAdminBar(page);
+                }
+                await freezePage(page);
+                const captureHtmlFile = path.join(safeOutDir, 'capture.html');
+                fs.writeFileSync(captureHtmlFile, await page.content(), 'utf8');
+                lastCaptureHtml = captureHtmlFile;
+                const filteredConsoleErrors = consoleErrors.filter((e) => !e.url || !abortedUrls.has(e.url));
+                const filteredNetworkErrors = networkErrors.filter((e) => !abortedUrls.has(e.url));
+                const domAudit = await runLayoutAudit(page);
+                const g1Issues = domAudit.issues;
+                const g1Passed =
+                  filteredConsoleErrors.length === 0 &&
+                  filteredNetworkErrors.length === 0 &&
+                  !g1Issues.horizontalOverflow &&
+                  g1Issues.overflowingElements.length === 0 &&
+                  g1Issues.clippedTextElements.length === 0 &&
+                  g1Issues.overlappingSiblings.length === 0 &&
+                  g1Issues.brokenImages.length === 0;
+                gate1Result = mergeGate1(gate1Result, {
+                  passed: g1Passed,
+                  viewport: domAudit.viewport,
+                  consoleErrors: filteredConsoleErrors,
+                  networkErrors: filteredNetworkErrors,
+                  ...g1Issues,
+                });
+                await targetContext.close();
+                continue;
+              }
+            } else {
+              bundleDir = getBundleDir(cwd, route.id, vp.name);
+              const existingManifest = readBundleManifest(bundleDir);
+
+              if (refKind === 'html-file') {
+                const capRes = await captureSingleRouteBundle({
+                  cwd,
+                  browser,
+                  route,
+                  viewport: vp,
+                  dpr,
+                  config,
+                  safeOutDir,
+                  opts: { ...opts, compareMode: true },
+                  applyNetworkPolicy,
+                });
+                if (!capRes.ok) {
+                  allChecksPassed = false;
+                  if (capRes.finding) gate2Findings.push(capRes.finding);
+                  continue;
+                }
+              } else if (refKind === 'url') {
+                if (!existingManifest || opts.refresh) {
+                  const capRes = await captureSingleRouteBundle({
+                    cwd,
+                    browser,
+                    route,
+                    viewport: vp,
+                    dpr,
+                    config,
+                    safeOutDir,
+                    opts,
+                    applyNetworkPolicy,
+                  });
+                  if (!capRes.ok) {
+                    allChecksPassed = false;
+                    if (capRes.finding) gate2Findings.push(capRes.finding);
+                    checks.push({
+                      route: route.id,
+                      viewport: vp.name,
+                      reference: null,
+                      referenceKind: refKind,
+                      passed: false,
+                      mismatchPct: null,
+                    });
+                    continue;
+                  }
+                }
+              } else if (refKind === 'screenshot') {
+                if (!existingManifest || opts.refresh) {
+                  const shotRes = await prepareScreenshotBundle({ cwd, browser, route, viewport: vp, dpr });
+                  if (!shotRes.ok) {
+                    allChecksPassed = false;
+                    if (shotRes.finding) gate2Findings.push(shotRes.finding);
+                    continue;
+                  }
+                }
+                tier = 'C';
+              } else if (refKind === 'design-file') {
+                if (!existingManifest || opts.refresh) {
+                  const designRes = await prepareDesignFileBundle({ cwd, config, route, viewport: vp, dpr });
+                  if (!designRes.ok) {
+                    allChecksPassed = false;
+                    if (designRes.finding) gate2Findings.push(designRes.finding);
+                    continue;
+                  }
+                }
+                tier = 'B';
+              }
+
+              const integrity = verifyBundleIntegrity(bundleDir, route.id, vp.name);
+              if (!integrity.ok) {
+                allChecksPassed = false;
+                if (integrity.finding) gate2Findings.push(integrity.finding);
+                continue;
+              }
+              refPath = integrity.pngPath;
+              refRel = toRelArtifact(refPath);
+              tier = integrity.manifest?.tier || tier;
+              const lmCandidate = path.join(bundleDir, '.landmarks.json');
+              if (fs.existsSync(lmCandidate)) {
+                expectedLandmarksPath = lmCandidate;
+              }
+            }
+
+            const refImg = readReferencePng(refPath);
+            const targetContext = await browser.newContext({
+              viewport: { width: vp.width, height: vp.height },
+              deviceScaleFactor: dpr,
+              serviceWorkers: 'block',
+              reducedMotion: 'reduce',
+            });
+            const page = await targetContext.newPage();
+            const abortedUrls = await applyNetworkPolicy(page, effectiveBaseUrl, config.allowNetwork);
+            const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
+
+            await page.goto(routeUrl, { waitUntil: 'networkidle', timeout: timeoutMs });
+            if (config.target?.kind === 'wordpress') {
+              await hideWpAdminBar(page);
+            }
+            await freezePage(page);
+
+            const captureHtmlFile = path.join(safeOutDir, 'capture.html');
+            fs.writeFileSync(captureHtmlFile, await page.content(), 'utf8');
+            lastCaptureHtml = captureHtmlFile;
+
+            const filteredConsoleErrors = consoleErrors.filter((e) => !e.url || !abortedUrls.has(e.url));
+            const filteredNetworkErrors = networkErrors.filter((e) => !abortedUrls.has(e.url));
+            const domAudit = await runLayoutAudit(page);
+            const g1Issues = domAudit.issues;
+            const g1Passed =
+              filteredConsoleErrors.length === 0 &&
+              filteredNetworkErrors.length === 0 &&
+              !g1Issues.horizontalOverflow &&
+              g1Issues.overflowingElements.length === 0 &&
+              g1Issues.clippedTextElements.length === 0 &&
+              g1Issues.overlappingSiblings.length === 0 &&
+              g1Issues.brokenImages.length === 0;
+
+            gate1Result = mergeGate1(gate1Result, {
+              passed: g1Passed,
+              viewport: domAudit.viewport,
+              consoleErrors: filteredConsoleErrors,
+              networkErrors: filteredNetworkErrors,
+              ...g1Issues,
+            });
+
+            const checkDir = path.join(safeOutDir, `${route.id}-${vp.name}`);
+            fs.mkdirSync(checkDir, { recursive: true });
+            const actualPath = path.join(checkDir, 'actual.png');
+            const maskBoxes = await collectMasks(page, maskSelectors, targetSelector);
+
+            const shouldFullPage = Boolean(
+              opts.fullPage || (refKind === 'screenshot' && route.reference?.region !== 'viewport')
+            );
+            let selBox = null;
+            if (targetSelector && !shouldFullPage) {
+              const loc = page.locator(targetSelector).first();
+              if ((await loc.count()) > 0) {
+                selBox = await loc.boundingBox();
+              }
+            }
+
+            let actualLandmarks = null;
+            if (mode === 'wireframe') {
+              const lmSelectors = String(opts.landmarks || 'header,nav,main,footer')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+              actualLandmarks = await page.evaluate((selectors) => {
+                const results = [];
+                for (const sel of selectors) {
+                  const els = Array.from(document.querySelectorAll(sel));
+                  let idx = 0;
+                  for (const el of els) {
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    if (style.display === 'none' || style.visibility === 'hidden' || rect.width <= 0 || rect.height <= 0) continue;
+                    results.push({
+                      selector: sel,
+                      index: idx++,
+                      x: Math.round(rect.x),
+                      y: Math.round(rect.y),
+                      width: Math.round(rect.width),
+                      height: Math.round(rect.height),
+                    });
+                  }
+                }
+                return results;
+              }, lmSelectors);
+            }
+
+            await page.screenshot({ path: actualPath, fullPage: shouldFullPage });
+            if (selBox && !shouldFullPage) {
+              cropPng(actualPath, selBox, dpr);
+            }
+
+            if (bundleDir && config.target?.kind !== 'wordpress') {
+              const styleRes = await runStyleParity({ page, bundleDir, tier });
+              if (styleRes.style) {
+                lastStyleMeta = styleRes.style;
+              }
+              if (styleRes.findings.length > 0) {
+                gate2Findings.push(...styleRes.findings);
+                if (styleRes.findings.some((f) => f.severity === 'fail')) {
+                  allChecksPassed = false;
+                }
+              }
+            }
+
+            await targetContext.close();
+
+            const isAdvisoryTier = tier === 'B' || tier === 'C';
+            const routeMaxDiff = route.reference?.maxDiff !== undefined
+              ? Number(route.reference.maxDiff)
+              : (isAdvisoryTier ? 20 : effectiveMaxDiff);
+
+            let resolvedSidecar = null;
+            if (mode === 'wireframe' && expectedLandmarksPath) {
+              resolvedSidecar = resolveExpectedLandmarks(null, expectedLandmarksPath);
+            }
+
+            const vis = compareVisual({
+              refImg,
+              actualPath,
+              outDir: checkDir,
+              threshold: effectiveThreshold,
+              maxDiff: routeMaxDiff,
+              mode,
+              maskBoxes,
+              dpr,
+              fullPage: shouldFullPage,
+              wireframe: mode === 'wireframe'
+                ? {
+                    actualLandmarks,
+                    expectedLandmarks: resolvedSidecar ? resolvedSidecar.data : null,
+                    hasSidecar: Boolean(resolvedSidecar?.found),
+                    tolerance: 4,
+                  }
+                : null,
+            });
+
+            if (isAdvisoryTier) {
+              const simPct = vis.mismatchPct !== null ? Number((100 - vis.mismatchPct).toFixed(4)) : 100;
+              const threshPct = Number((100 - routeMaxDiff).toFixed(4));
+              lastAdvisory = {
+                similarityPct: simPct,
+                thresholdPct: threshPct,
+                met: simPct >= threshPct,
+              };
+              const hasDimensionFail = (vis.findings || []).some((f) => f.id.includes('dimension') || f.id.includes('height'));
+              if (hasDimensionFail) allChecksPassed = false;
+              for (const f of vis.findings || []) {
+                const isDim = f.id.includes('dimension') || f.id.includes('height');
+                const fid = f.id.startsWith('gate2.landmark.') ? f.id : `${f.id}.${route.id}.${vp.name}`; gate2Findings.push({ ...f, severity: isDim ? 'fail' : 'info', id: fid });
+              }
+            } else if (!vis.passed) {
+              allChecksPassed = false;
+              for (const f of vis.findings || []) {
+                gate2Findings.push({ ...f, id: `${f.id}.${route.id}.${vp.name}` });
+              }
+            }
+
+            checks.push({
+              route: route.id,
+              viewport: vp.name,
+              reference: path.relative(cwd, refPath),
+              actual: vis.artifacts?.actual,
+              thresholdPct: Number((100 - routeMaxDiff).toFixed(4)),
+              referenceKind: refKind,
+              tier,
+              ...(targetSelector ? { selector: targetSelector } : {}),
+              passed: isAdvisoryTier ? true : vis.passed,
+              mismatchPct: vis.mismatchPct,
+            });
+            lastMismatchPct = vis.mismatchPct;
+            lastArtifacts = {
+              actual: toRelArtifact(vis.artifacts?.actual),
+              diff: toRelArtifact(vis.artifacts?.diff),
+              composite: toRelArtifact(vis.artifacts?.composite),
+              reference: refRel,
+              ...(lastCaptureHtml ? { captureHtml: lastCaptureHtml } : {}),
+            };
+          }
+        }
+
+        if (checks.length > 0 || gate2Findings.length > 0) {
+          gate2Result = {
+            passed: allChecksPassed,
+            skipped: false,
+            mode,
+            mismatchPct: lastMismatchPct,
+            checks,
+            findings: gate2Findings,
+            artifacts: lastArtifacts || (lastCaptureHtml ? { captureHtml: lastCaptureHtml } : null),
+            capture: { serviceWorkers: 'block' },
+            ...(lastAdvisory ? { advisory: lastAdvisory } : {}),
+            ...(lastStyleMeta ? { style: lastStyleMeta } : {}),
+          };
+        } else {
+          gate2Result = {
+            passed: true,
+            skipped: true,
+            reason: 'No matching reference PNGs for configured routes',
+            artifacts: lastCaptureHtml ? { captureHtml: lastCaptureHtml } : null,
+            capture: { serviceWorkers: 'block' },
+          };
+        }
+
+        if (config.acceptance) {
+          const intakeFindings = checkAcceptanceMapping(cwd, config.acceptance, scenariosList);
+          gate3Result = {
+            passed: intakeFindings.length === 0,
+            skipped: false,
+            findings: intakeFindings,
+          };
+        }
+
+        // Dual-run functional parity (M2b.2 / SIDE-29)
+        const behavioralRoute = config.routes.find((r) => {
+          const k = r.reference?.kind || 'png';
+          return k === 'html-file' || k === 'url';
+        });
+        const onlyScreenshot = config.routes.length > 0 && config.routes.every((r) => (r.reference?.kind || 'png') === 'screenshot');
+
+        if (onlyScreenshot) {
+          gate3Result = {
+            ...(gate3Result || { passed: true, skipped: false, findings: [] }),
+            parity: { skipped: true, reason: 'reference has no behavior' },
+          };
+        } else if (behavioralRoute && scenariosList.length > 0) {
+          const refKind = behavioralRoute.reference.kind;
+          let refServer = null;
+          let refUrl = behavioralRoute.reference.source;
+          let harPath = null;
+          try {
+            if (refKind === 'html-file') {
+              refServer = await startStaticServer({ file: path.resolve(cwd, behavioralRoute.reference.source) });
+              refUrl = refServer.baseUrl;
+            } else if (refKind === 'url') {
+              const bDir = getBundleDir(cwd, behavioralRoute.id, config.viewports[0].name);
+              const candidateHar = path.join(bDir, '.har');
+              if (fs.existsSync(candidateHar)) harPath = candidateHar;
+            }
+            const parityRes = await runParityComparison({
+              browser,
+              scenarios: scenariosList,
+              referenceUrl: refUrl,
+              targetUrl: effectiveBaseUrl,
+              harPath,
+              viewport: { width: config.viewports[0].width, height: config.viewports[0].height },
+              dpr,
+              outDir: safeOutDir,
+              cwd,
+              maxDiff: effectiveMaxDiff,
+              threshold: effectiveThreshold,
+              applyNetworkPolicy,
+              allowNetwork: config.allowNetwork || [],
+            });
+            gate3Result = {
+              passed: (gate3Result ? gate3Result.passed : true) && parityRes.passed,
+              skipped: false,
+              scenarios: parityRes.scenarios,
+              parity: parityRes.parity,
+              findings: [...(gate3Result?.findings || []), ...parityRes.findings],
+            };
+          } finally {
+            if (refServer) await refServer.close();
+          }
+        } else if (!onlyScreenshot && scenariosList.length > 0) {
+          const scenPage = await browser.newPage({
+            viewport: { width: config.viewports[0].width, height: config.viewports[0].height },
+            deviceScaleFactor: dpr,
+          });
+          await applyNetworkPolicy(scenPage, effectiveBaseUrl, config.allowNetwork);
+          const scenResults = [];
+          const scenFindings = [...(gate3Result?.findings || [])];
+          let scenAllOk = gate3Result ? gate3Result.passed : true;
+          for (const sc of scenariosList) {
+            const sr = await runScenario({
+              page: scenPage,
+              scenario: sc,
+              baseUrl: effectiveBaseUrl,
+              outDir: safeOutDir,
+              cwd,
+              defaultTimeoutMs: timeoutMs,
+            });
+            scenResults.push(sr.scenarioReport);
+            scenFindings.push(...sr.findings);
+            if (!sr.passed) scenAllOk = false;
+          }
+          await scenPage.close();
+          gate3Result = {
+            passed: scenAllOk,
+            skipped: false,
+            scenarios: scenResults,
+            findings: scenFindings,
+          };
+        }
+      }
+
+      await browser.close();
+      browser = null;
+    } finally {
+      if (activeTarget) {
+        await activeTarget.close();
+      }
+    }
   }
 
   if (visionEnabled && parsedVerdict) {
@@ -726,7 +1269,7 @@ try {
   const g3Ok = gate3Result ? gate3Result.passed : true;
   const passed = Boolean(g1Ok && g2Ok && g3Ok);
 
-  const report = buildReport({
+  const preReport = buildReport({
     passed,
     iteration,
     durationMs,
@@ -735,7 +1278,28 @@ try {
     gate3Result,
   });
 
+  const loop = computeLoop({
+    outDir: safeOutDir,
+    runId,
+    iteration,
+    passed: preReport.passed,
+    findings: preReport.findings,
+    mismatchPct: gate2Result?.mismatchPct ?? null,
+    advisory: gate2Result?.advisory ?? null,
+  });
+
+  const report = buildReport({
+    passed,
+    iteration,
+    durationMs,
+    gate1Result,
+    gate2Result,
+    gate3Result,
+    loop,
+  });
+
   const telemetryPath = recordTelemetry(outRel, {
+    runId,
     url: opts.url || config?.baseUrl || '',
     mode,
     dpr,
@@ -744,7 +1308,10 @@ try {
     gate1Passed: Boolean(report.gates.gate1?.passed),
     gate2Passed: Boolean(report.gates.gate2?.passed),
     mismatchPct: gate2Result?.mismatchPct ?? null,
+    similarityPct: gate2Result?.advisory?.similarityPct ?? null,
     durationMs: report.durationMs,
+    failCount: report.findings.filter((f) => f.severity === 'fail').length,
+    failIds: report.findings.filter((f) => f.severity === 'fail').map((f) => f.id),
     findingIds: report.findings.map((f) => f.id),
     model: opts.model,
     harness: opts.harness,
@@ -753,7 +1320,7 @@ try {
   report.telemetry = telemetryPath;
   report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
 
-  fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
+  fs.writeSync(1, redactSecrets(JSON.stringify(report, null, 2)) + '\n');
   process.exit(report.exitCode);
 } catch (err) {
   if (browser) {
@@ -762,11 +1329,12 @@ try {
     } catch {}
   }
   const durationMs = Date.now() - startMs;
-  const errMsg = err.message || String(err);
+  const errMsg = redactSecrets(err.message || String(err));
   const parsedIter = Number(opts.iteration);
-  const safeIter = Number.isInteger(parsedIter) ? parsedIter : iteration;
+  const safeIter = Number.isInteger(parsedIter) && parsedIter >= 1 && parsedIter <= 5 ? parsedIter : iteration;
+  const safeRunId = runId || resolveRunId(opts.runId, null);
 
-  const failureReport = buildReport({
+  const preFailureReport = buildReport({
     passed: false,
     iteration: safeIter,
     durationMs,
@@ -776,10 +1344,32 @@ try {
     gate3Result,
   });
 
+  const loop = computeLoop({
+    outDir: safeOutDir,
+    runId: safeRunId,
+    iteration: safeIter,
+    passed: false,
+    errorMessage: errMsg,
+    findings: preFailureReport.findings,
+    blocked: true,
+  });
+
+  const failureReport = buildReport({
+    passed: false,
+    iteration: safeIter,
+    durationMs,
+    errorMessage: errMsg,
+    gate1Result,
+    gate2Result,
+    gate3Result,
+    loop,
+  });
+
   let telemetryPath = null;
   if (safeOutDir) {
     try {
       telemetryPath = recordTelemetry(toRelArtifact(safeOutDir), {
+        runId: safeRunId,
         url: opts.url || '',
         mode,
         dpr,
@@ -790,6 +1380,8 @@ try {
         mismatchPct: null,
         durationMs: failureReport.durationMs,
         error: errMsg,
+        failCount: failureReport.findings.filter((f) => f.severity === 'fail').length,
+        failIds: failureReport.findings.filter((f) => f.severity === 'fail').map((f) => f.id),
         findingIds: failureReport.findings.map((f) => f.id),
         model: opts.model,
         harness: opts.harness,
@@ -802,6 +1394,6 @@ try {
     failureReport.artifacts = { ...(failureReport.artifacts || {}), telemetry: telemetryPath };
   }
 
-  fs.writeSync(1, JSON.stringify(failureReport, null, 2) + '\n');
+  fs.writeSync(1, redactSecrets(JSON.stringify(failureReport, null, 2)) + '\n');
   process.exit(failureReport.exitCode);
 }

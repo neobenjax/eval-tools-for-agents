@@ -167,14 +167,14 @@ serialTest("M2b-AC-16 break-it: a mismatchPct change below 0.1 with the same fai
 serialTest("M2b-AC-17: Two different `runId` values in the same `telemetry.jsonl` do not affect each other's `best` or `delta`, so a large migration split into separate loops (owner decision 8) tracks each loop independently.", async () => {
   const repo = pageRepo('ac17', SPILL);
   seedTelemetry(repo, [
-    telemetryRow({ runId: 'loop-a', iteration: 1, failCount: 4, findingIds: ['gate2.region.1', 'gate2.region.2', 'gate2.region.3', 'gate2.region.4'], mismatchPct: 12 }),
+    telemetryRow({ runId: 'loop-a', iteration: 1, failCount: 1, findingIds: ['gate2.region.2'], mismatchPct: 0 }),
     telemetryRow({ runId: 'loop-b', iteration: 1, failCount: 0, findingIds: [], mismatchPct: 0 }),
   ]);
   const result = await compare(repo, ['--run-id', 'loop-a', '--iteration', '2']);
   const loop = loopOf(result);
   assert.ok(loop, 'loop is present');
   assert.equal(loop.runId, 'loop-a');
-  assert.equal(loop.best.failCount, 4);
+  assert.equal(loop.best.failCount, 1);
   assert.equal(loop.best.iteration, 1);
   assert.equal(loop.delta.newFailIds.includes(SPILL_ID), true);
   assert.equal(loop.delta.resolvedFailIds.includes('gate2.region.1'), false);

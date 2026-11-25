@@ -62,12 +62,6 @@ export async function runLayoutAudit(page) {
     const winWidth = window.innerWidth;
     if (docWidth > winWidth) {
       issues.horizontalOverflow = true;
-      issues.overflowingElements.push({
-        selector: 'html',
-        box: toBox(document.documentElement),
-        scrollWidth: docWidth,
-        clientWidth: winWidth,
-      });
     }
 
     const describe = (el) => {

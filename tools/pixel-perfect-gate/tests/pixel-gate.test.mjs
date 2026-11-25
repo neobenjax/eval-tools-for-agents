@@ -668,3 +668,38 @@ test('landmark finding id suffix 1-based indexing: index 0 omits suffix, index 1
   assert.equal(result.findings[0].id, 'gate2.landmark.header');
   assert.equal(result.findings[1].id, 'gate2.landmark.header.2');
 });
+
+test('Commander unknown flag and missing option value emit Section 6 JSON on stdout', async () => {
+  for (const args of [['--not-a-real-flag'], ['--url']]) {
+    const { code, json } = await runCli(args);
+    assert.equal(code, 1);
+    assert.equal(json.schemaVersion, 1);
+    assert.equal(json.passed, false);
+    assert.equal(json.exitCode, 1);
+    assert.ok(typeof json.error?.message === 'string' && json.error.message.length > 0);
+  }
+});
+
+test('--url aborts non-allowlisted external origins before they hit the network', async () => {
+  let sinkHits = 0;
+  const sink = http.createServer((req, res) => {
+    sinkHits++;
+    res.writeHead(200, { 'Content-Type': 'image/png' });
+    res.end();
+  });
+  await new Promise((resolve) => sink.listen(0, '127.0.0.1', resolve));
+  const sinkOrigin = `http://127.0.0.1:${sink.address().port}`;
+  try {
+    const outDir = path.join(tmpOut, 'run-url-network');
+    const { code, json } = await runCli([
+      '--url', `${baseUrl}/m2/site/network.html?ext=${encodeURIComponent(sinkOrigin)}`,
+      '--out', outDir,
+    ]);
+    assert.equal(code, 0);
+    assert.equal(json.passed, true);
+    assert.equal(json.gates.gate1.passed, true);
+    assert.equal(sinkHits, 0);
+  } finally {
+    await new Promise((resolve) => sink.close(resolve));
+  }
+});

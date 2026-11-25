@@ -1,0 +1,1 @@
+Use the pixel-perfect-gate skill to run the global `pixel-gate` command on the current project and return the raw Section 6 JSON report on stdout.

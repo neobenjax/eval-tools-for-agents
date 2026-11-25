@@ -9,7 +9,11 @@ export function attachRuntimeListeners(page) {
 
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      consoleErrors.push({ type: 'console.error', text: msg.text() });
+      consoleErrors.push({
+        type: 'console.error',
+        text: msg.text(),
+        url: msg.location()?.url || '',
+      });
     }
   });
 

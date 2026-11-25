@@ -4,7 +4,7 @@
 **Repository:** `git@github.com:neobenjax/eval-tools-for-agents.git`  
 **Linear Team:** `Side Projects` (`SIDE`)  
 **Leader & Assignee:** Benjamin Sanchez (`neobenjax`)  
-**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-36` assigned (`SIDE-16` `Approved`; Milestone 2b keys `SIDE-28`–`SIDE-36` synced to Linear). Test-driven milestone acceptance (section 13). The section 6 report is on `main` (PR #16): M1-AC-01 through M1-AC-15 are the green suite. The M2 gap suite M2-AC-01 through M2-AC-37 is present (PR #17). The M2b gap suite M2b-AC-01 through M2b-AC-59 is present. The M3 gap suite is M3-AC-01 through M3-AC-03, and M3-AC-04 is green (PR #20). The section 4 box for the report-schema row stays `[ ]` until Linear is `Approved` (stage is `In Review`).
+**Spec revision:** Owner decisions resolved + Linear keys `SIDE-24`–`SIDE-36` assigned (`SIDE-16` and `SIDE-24` `Approved`; Milestone 2b keys `SIDE-28`–`SIDE-36` synced to Linear). Test-driven milestone acceptance (section 13). The section 6 report is on `main` (PR #16): M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are green (`tests/acceptance/m2/*.test.mjs`). The M2b gap suite M2b-AC-01 through M2b-AC-59 is present. The M3 gap suite is M3-AC-01 through M3-AC-03, and M3-AC-04 is green (PR #20).
 
 `scripts/sync-linear.mjs --sync-spec` rewrites the `[ ]` / `[x]` on lines matching `^- \[ \] \*\*SIDE-<n>\*\*`. A key is `[x]` only when its Linear stage is `Approved`. All issues in Section 4 carry their native `SIDE-<n>` Linear key. `RS-<n>` in `AGENTS.md` / `CONTEXT.md` remains documented as the convention for any future proposed rows not yet in Linear.
 
@@ -25,9 +25,9 @@ Build a reusable, cross-harness monorepo of deterministic evaluation tools for A
 - Telemetry (`src/telemetry.mjs`): append-only `.visual-eval/telemetry.jsonl` with `iteration`, `mismatchPct`, `durationMs`, `gate1Passed`, `gate2Passed`, `model`, and `harness`.
 - Stdout today is one JSON object: `schemaVersion`, `passed`, `exitCode`, `iteration`, `durationMs`, `error`, `findings`, `gates`, `artifacts`, `telemetry`. Exit `0` when all gates pass, exit `1` when they do not. All runtime and engine failures in `bin/pixel-gate.mjs` are caught and print the Section 6 JSON report with telemetry. Commander option-parsing failures print the Section 6 JSON envelope, and `--help` and `--version` are the remaining non-JSON exits.
 - Animations, transitions, and the caret are forced to zero duration before capture. The run waits on `document.fonts.ready`.
-- Tests (20/20 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`. That file is the engine suite only. Milestone acceptance is separate (section 13): M1-AC-01 through M1-AC-15 and M3-AC-04 are green; M2-AC-01 through M2-AC-37, M2b-AC-01 through M2b-AC-59, and M3-AC-01 through M3-AC-03 are gap suites.
+- Tests (22/22 passing in `tests/pixel-gate.test.mjs`) cover 1x match, broken-layout (overflow, 404, broken image, overlap opt-out), `@2x` match, odd-size `@2x` self-crop, `--selector` full-frame & element-sized cropping, `--mask`, clipped text, `console.error`, wireframe landmark tolerance and sidecar discovery, committed reference PNGs (`committed-card-1x.png`, `committed-fullpage-1x.png`, `wireframe-base-1x.png`), `--full-page` height mismatch hard failure, DPR divisibility validation, `--iteration` bounds, and fatal exit telemetry. CI runs on both `ubuntu-latest` and `windows-latest`. That file is the engine suite only. Milestone acceptance is separate (section 13): M1-AC-01 through M1-AC-15, M2-AC-01 through M2-AC-37, and M3-AC-04 are green; M2b-AC-01 through M2b-AC-59 and M3-AC-01 through M3-AC-03 are gap suites.
 
-That engine is the core. It is not yet the product above. PR #2 does not ingest a project's routes or acceptance list, run a user flow, or install a global CLI for an arbitrary repo. PR #16 added the Section 6 report an agent reads; those criteria are the green suite (M1-AC-09 through M1-AC-15). The next product work is the Milestone 2 gap suite. Milestone 2b has its own gap suite (M2b-AC-01 through M2b-AC-59).
+That engine is the core. PR #16 added the Section 6 report (`M1-AC-09` through `M1-AC-15`), and Milestone 2 (`M2-AC-01` through `M2-AC-37`) delivers the global CLI, per-project config, spec intake, Gate 3 static audit and scenario runner, optional vision pass, cross-harness `SKILL.md`, installer, and harness smoke checks. Milestone 2b has its own gap suite (`M2b-AC-01` through `M2b-AC-59`).
 
 Milestone acceptance is section 13. A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest`. Criteria the product does not meet yet stay in the gap suite. `node scripts/acceptance-status.mjs` reports them, CI stays green, and a gap test cannot be skipped.
 
@@ -93,7 +93,7 @@ M3 (SIDE-23) and a blocking vision verdict are not required for this list.
 
 ## 4. Linear-Synced Milestone & Task Matrix (1:1 `SIDE-XX` Parity)
 
-Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18`) and PR #10 (`SIDE-16`) are merged to `main` and `Approved` in Linear, so all five are checked (`[x]`). PR #16 merged the section 6 report and its section 8 boxes are checked (M1-AC-09 through M1-AC-15, manifest `suite: "pass"`). The section 4 box for that row stays `[ ]`: this file checks a matrix key only when Linear is `Approved`, and that issue is `In Review`.
+Status words match Linear (`Approved`, `In Review`, `Todo`). PR #2 (`SIDE-14`, `SIDE-15`, `SIDE-17`, `SIDE-18`), PR #10 (`SIDE-16`), and PR #16 (`SIDE-24`) are merged to `main` and `Approved` in Linear, so all six are checked (`[x]`), and the section 8 boxes for `SIDE-16` and `SIDE-24` are checked (`M1-AC-01` through `M1-AC-15`, manifest `suite: "pass"`).
 
 ### Milestone 0: Repo Bootstrap & Linear Sync
 
@@ -116,7 +116,7 @@ PR #2 (`feat/SIDE-14-m1-pixel-gate-engine`) and PR #10 (`feat/SIDE-16-wireframe-
 
 PR #16 is on `main`. Section 8 for this row is fully checked, so section 13 treats M1-AC-09 through M1-AC-15 as the green suite, not as gaps. Do not re-implement the report. Do not check the matrix box below until Linear is `Approved`.
 
-- [ ] **SIDE-24** `[M1.6]` Versioned agent report schema on every exit *(Depends on: SIDE-18 · In Review)*
+- [x] **SIDE-24** `[M1.6]` Versioned agent report schema on every exit *(Depends on: SIDE-18 · Approved)*
 
 ### Milestone 2: Cross-Harness Skill, Spec Intake & Gate 3
 
@@ -388,18 +388,18 @@ PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, c
 
 ### SIDE-25 per-project config and global CLI (`M2.0a`)
 
-- [ ] After one install, `pixel-gate` resolves on `PATH`.
-- [ ] `pixel-gate --help` exits `0` on Windows and on Ubuntu.
-- [ ] A config file in a second repo supplies base URL, viewports, reference directory, masks, routes, and scenarios.
-- [ ] The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.
-- [ ] `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.
+- [x] After one install, `pixel-gate` resolves on `PATH`.
+- [x] `pixel-gate --help` exits `0` on Windows and on Ubuntu.
+- [x] A config file in a second repo supplies base URL, viewports, reference directory, masks, routes, and scenarios.
+- [x] The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.
+- [x] `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.
 
 ### SIDE-26 spec intake (`M2.0b`)
 
-- [ ] Reference PNGs are keyed by route id and viewport name, as in section 7.
-- [ ] A markdown acceptance list maps each scenario heading to a scenario id. An unmapped heading and an unmapped scenario each produce a finding and exit `1`.
-- [ ] A configured route with no reference PNG fails with `gate2.missing-reference.<route-id>.<viewport-name>`.
-- [ ] The determinism checks in section 5 that need a project fixture run here: pinned font on the committed PNG, non-fixture network aborted, `ubuntu-latest` as the pixel source of truth, and a `windows-latest` CI job satisfying the Section 5 Windows v1 requirement.
+- [x] Reference PNGs are keyed by route id and viewport name, as in section 7.
+- [x] A markdown acceptance list maps each scenario heading to a scenario id. An unmapped heading and an unmapped scenario each produce a finding and exit `1`.
+- [x] A configured route with no reference PNG fails with `gate2.missing-reference.<route-id>.<viewport-name>`.
+- [x] The determinism checks in section 5 that need a project fixture run here: pinned font on the committed PNG, non-fixture network aborted, `ubuntu-latest` as the pixel source of truth, and a `windows-latest` CI job satisfying the Section 5 Windows v1 requirement.
 
 ### SIDE-19 re-scope (M2)
 
@@ -407,59 +407,59 @@ Static audit and scenario runner ship together. Static checks use `src/interacti
 
 Static:
 
-- [ ] Flags a button or link-role control with no accessible name.
-- [ ] Flags `href="#"` and `href=""`.
-- [ ] Flags a click target whose center is covered by another element.
-- [ ] Flags an input, select, or textarea with no associated label.
-- [ ] Each static hit is a `findings` entry with `id`, `selector`, `box`, and `text`.
+- [x] Flags a button or link-role control with no accessible name.
+- [x] Flags `href="#"` and `href=""`.
+- [x] Flags a click target whose center is covered by another element.
+- [x] Flags an input, select, or textarea with no associated label.
+- [x] Each static hit is a `findings` entry with `id`, `selector`, `box`, and `text`.
 
 Static rule details & explicit exclusions: `dead-href` flags `href="#"` and `href=""`; same-page fragment anchors with a non-empty target (e.g. `href="#main"`) and normal paths are allowed. `covered-target` uses center-point hit-testing via `document.elementFromPoint(centerX, centerY)`: a click target is covered only when the element at its center is neither the target nor a descendant of the target (`elementFromPoint` already skips `pointer-events: none`). In the fixture the full cover is `#overlay`, the edge cover is `#edge-overlay`, and the `pointer-events: none` overlay is `#pe-overlay`; `#pe-none` is the button under that overlay and must not be flagged. `no-label` scans `<input>`, `<select>`, `<textarea>`; placeholder is not a label; hidden and submit inputs are out of scope; `<label for="...">`, wrapping `<label>`, `aria-label`, and `aria-labelledby` count as associated labels.
 
 Scenario runner:
 
-- [ ] A fixture opens a modal, flips a toggle, and submits a labeled form, and exits `0`.
-- [ ] A broken step returns `passed: false`, exit `1`, and a finding with the step selector, the action name, and a screenshot path under `.visual-eval/`.
-- [ ] The runner performs the steps in the scenario file. It does not infer a flow from the static scan.
+- [x] A fixture opens a modal, flips a toggle, and submits a labeled form, and exits `0`.
+- [x] A broken step returns `passed: false`, exit `1`, and a finding with the step selector, the action name, and a screenshot path under `.visual-eval/`.
+- [x] The runner performs the steps in the scenario file. It does not infer a flow from the static scan.
 
 The static scan may also run inside the Gate 1 browser session as a cheap add-on. Its findings still use the `gate3.` id prefix so agents can tell the gates apart.
 
 ### SIDE-27 vision pass (`M2.1b`, off by default)
 
-- [ ] With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.
-- [ ] With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.
-- [ ] A caller may pass a verdict JSON (`--vision-verdict <file>`) with `{ "passed": boolean, "text": string }`. The text is copied into an `info` finding.
-- [ ] That verdict does not change `passed` unless `vision.blocking` is true. The default is false.
-- [ ] A test covers enabled+non-blocking (deterministic pass stays pass even if the verdict says fail) and blocking (verdict fail forces exit `1`).
+- [x] With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.
+- [x] With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.
+- [x] A caller may pass a verdict JSON (`--vision-verdict <file>`) with `{ "passed": boolean, "text": string }`. The text is copied into an `info` finding.
+- [x] That verdict does not change `passed` unless `vision.blocking` is true. The default is false.
+- [x] A test covers enabled+non-blocking (deterministic pass stays pass even if the verdict says fail) and blocking (verdict fail forces exit `1`).
 
 ### SIDE-20 re-scope (M2)
 
 Depends on SIDE-24, SIDE-25, and the SIDE-19 scenario runner.
 
-- [ ] `SKILL.md` tells the agent to run the global `pixel-gate` command, not a path into this repo.
-- [ ] The skill tells the agent to parse the section 6 JSON and to stop after 5 iterations even if `passed` is still false.
-- [ ] The skill tells the agent to write a Playwright `.spec.ts` that replays the scenario file.
-- [ ] The skill states when to use pixel mode and when to use wireframe mode (pixel when a committed PNG exists; wireframe when the reference is a structural sketch).
-- [ ] The skill states that optional host `chrome-devtools-mcp` inspection is an aid only and cannot change `passed`, `findings`, or `exitCode`.
-- [ ] A test reads the skill file and fails if the 5-iteration cap is missing.
-- [ ] No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.
+- [x] `SKILL.md` tells the agent to run the global `pixel-gate` command, not a path into this repo.
+- [x] The skill tells the agent to parse the section 6 JSON and to stop after 5 iterations even if `passed` is still false.
+- [x] The skill tells the agent to write a Playwright `.spec.ts` that replays the scenario file.
+- [x] The skill states when to use pixel mode and when to use wireframe mode (pixel when a committed PNG exists; wireframe when the reference is a structural sketch).
+- [x] The skill states that optional host `chrome-devtools-mcp` inspection is an aid only and cannot change `passed`, `findings`, or `exitCode`.
+- [x] A test reads the skill file and fails if the 5-iteration cap is missing.
+- [x] No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.
 
 ### SIDE-21 re-scope (M2)
 
 Depends on SIDE-20 and SIDE-25. One installer path: `tools/pixel-perfect-gate/scripts/install.mjs`. Do not also add `scripts/install.mjs` at the repo root.
 
-- [ ] On Windows the installer creates a directory junction for the skill. On Unix it creates the skill link with `ln -sfn`.
-- [ ] Skill destinations: Antigravity Desktop `~/.gemini/config/skills/`, Antigravity CLI `~/.gemini/antigravity-cli/skills/`, Cursor `~/.cursor/skills/`.
-- [ ] The installer puts `pixel-gate` on `PATH` and installs the pinned Chromium.
-- [ ] The installer does not add this package to the dependencies of the target application.
-- [ ] Re-running the installer replaces the links and leaves a working `pixel-gate --help`.
+- [x] On Windows the installer creates a directory junction for the skill. On Unix it creates the skill link with `ln -sfn`.
+- [x] Skill destinations: Antigravity Desktop `~/.gemini/config/skills/`, Antigravity CLI `~/.gemini/antigravity-cli/skills/`, Cursor `~/.cursor/skills/`.
+- [x] The installer puts `pixel-gate` on `PATH` and installs the pinned Chromium.
+- [x] The installer does not add this package to the dependencies of the target application.
+- [x] Re-running the installer replaces the links and leaves a working `pixel-gate --help`.
 
 ### SIDE-22 re-scope (M2)
 
 A live model loop is evidence, not a merge condition.
 
-- [ ] All three required v1 harnesses (**Antigravity Desktop, Antigravity CLI, and Cursor**) list the installed `pixel-perfect-gate` skill (no skip path).
-- [ ] A scripted prompt (fixed text, no requirement that a model invent a fix) returns stdout that parses as section 6 JSON in each of the three harnesses.
-- [ ] A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.
+- [x] All three required v1 harnesses (**Antigravity Desktop, Antigravity CLI, and Cursor**) list the installed `pixel-perfect-gate` skill (no skip path).
+- [x] A scripted prompt (fixed text, no requirement that a model invent a fix) returns stdout that parses as section 6 JSON in each of the three harnesses.
+- [x] A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.
 
 ### SIDE-23 re-scope (M3)
 
@@ -563,7 +563,7 @@ Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Bloc
 Linear `blockedBy` relations match Section 4:
 
 1. PR #2 and PR #10 merged (`SIDE-14`, `SIDE-15`, `SIDE-16`, `SIDE-17`, `SIDE-18` `Approved`).
-2. **SIDE-24** report schema (`M1.6`). On `main` after PR #16. Section 8 is checked and M1-AC-09 through M1-AC-15 are green. The section 4 box stays `[ ]` until Linear is `Approved` (stage `In Review`). `SIDE-20` and `SIDE-23` both read the report.
+2. **SIDE-24** report schema (`M1.6`). On `main` after PR #16. Section 8 is checked, M1-AC-09 through M1-AC-15 are green, and the section 4 box is checked (`Approved` in Linear). `SIDE-20` and `SIDE-23` both read the report.
 3. **SIDE-25** global install and per-project config (`M2.0a`).
 4. **SIDE-26** spec intake (`M2.0b`) and **SIDE-19** (static audit and scenario runner), in the same stage. Includes the section 5 determinism pass: committed PNGs, pinned font, aborted non-fixture network, `ubuntu-latest` as the pixel bar, `windows-latest` CI satisfying the Section 5 Windows v1 requirement.
 5. **SIDE-20** skill, then **SIDE-21** installer, then **SIDE-22** smoke checklist.
@@ -800,7 +800,7 @@ Milestone work is driven by tests written from section 8. The product change fol
 
 `ENFORCED_MILESTONES` in `tools/pixel-perfect-gate/tests/acceptance/manifest.mjs` is currently `M1`, `M2`, `M2b`, and `M3`. The family comes from the section 4 tag: `[M1.6]` is `M1`, `[M2.0a]` is `M2`, `[M2b.1]` is `M2b`, `[M3.1]` is `M3`. Section 8 checkboxes under an enforced family are the criteria. Checked boxes (`- [x]`) are the green suite. Unchecked boxes (`- [ ]`) are the gap suite. `- [X]` is not a checkbox. Section 4 `[ ]` / `[x]` is the Linear stage matrix (a key is `[x]` only when Linear is `Approved`). It does not choose the green suite or the gap suite.
 
-Milestone 2 tests are written as a gap suite (`M2-AC-01` to `M2-AC-37`, 37 criteria, gap tests in `*.pending.mjs` under `tools/pixel-perfect-gate/tests/acceptance/pending/`, helpers in `tools/pixel-perfect-gate/tests/acceptance/m2-helpers.mjs`). When an M2 issue is implemented, promote its tests into `tools/pixel-perfect-gate/tests/acceptance/m2/` as `*.test.mjs`, check the section 8 boxes, and flip the manifest `suite` to `pass` in the same change. Milestone 2b is its own gap suite (`M2b-AC-01` to `M2b-AC-59`, 59 criteria, `pending/m2b-*.pending.mjs`, helpers in `m2b-helpers.mjs`). Promote a passing M2b criterion into `tools/pixel-perfect-gate/tests/acceptance/m2b/*.test.mjs` the same way. Milestone 2b is not part of the M1, M2, or M3 suites.
+Milestone 2 tests (`M2-AC-01` to `M2-AC-37`, 37 criteria, helpers in `tools/pixel-perfect-gate/tests/acceptance/m2-helpers.mjs`) are green in `tools/pixel-perfect-gate/tests/acceptance/m2/*.test.mjs`, with all section 8 boxes checked and manifest `suite` set to `pass`. Milestone 2b is its own gap suite (`M2b-AC-01` to `M2b-AC-59`, 59 criteria, `pending/m2b-*.pending.mjs`, helpers in `m2b-helpers.mjs`). Promote a passing M2b criterion into `tools/pixel-perfect-gate/tests/acceptance/m2b/*.test.mjs` the same way. Milestone 2b is not part of the M1, M2, or M3 suites.
 
 Milestone 3 gap tests are `M3-AC-01` to `M3-AC-03` (the unchecked section 8 boxes under the viewer issue, in that order). They live in `tools/pixel-perfect-gate/tests/acceptance/pending/m3-*.pending.mjs`. Helpers live in `tools/pixel-perfect-gate/tests/acceptance/m3-helpers.mjs`. The pinned command and JSON shapes are in section 7. When the viewer is implemented, promote those tests into `tools/pixel-perfect-gate/tests/acceptance/m3/` as `*.test.mjs`, check the section 8 boxes, and flip the manifest `suite` to `pass` in the same change. `M3-AC-04` is already green. It parses the section 4 `Depends on:` list for the viewer row and lives in `tools/pixel-perfect-gate/tests/acceptance/m3/m3-depends.test.mjs` with its break-its. No M3 break-it is registered `{ title, suite: "pass" }` under an unchecked criterion.
 
@@ -814,7 +814,7 @@ Green tests are `*.test.mjs` under `tools/pixel-perfect-gate/tests/acceptance/` 
 
 A gap test is a real assertion of the criterion. It is expected to fail with `ERR_ASSERTION` until the product meets it. `node scripts/acceptance-status.mjs` runs the gap files. It exits 0 while every gap test fails that way, and exits 1 if a gap test is missing, skipped, todo, crashes, or starts passing. A gap test that starts passing is promoted into a green `*.test.mjs` file in the same change that checks its section 8 box. A break-it that already passes may be registered as `{ title, suite: "pass" }` and moved into a green `*.test.mjs` while its section 8 criterion stays unchecked, until that criterion's own test passes. `node scripts/verify.mjs` runs this command (via the package test script) on `ubuntu-latest` and `windows-latest`, so `main` stays green and the remaining criteria cannot be skipped.
 
-The break-its for M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, and M2-AC-21 are that case. They are unchanged in `tools/pixel-perfect-gate/tests/acceptance/m2/m2-shipped-break-its.test.mjs` and registered `{ title, suite: "pass" }` under still-unchecked criteria. Five M2b break-its are the same case in `tools/pixel-perfect-gate/tests/acceptance/m2b/m2b-shipped-break-its.test.mjs`: a Gate 1 finding does not grow `refBox`, `expected`, or `actual` (M2b-AC-19); omitting `pwa` does not fail installability (M2b-AC-23); and the three M2b-AC-59 skill-checker directions. When a gap break-it starts passing before its criterion, move it unchanged to a green `*.test.mjs` file and register it the same way. Leave the section 8 box unchecked.
+All 37 Milestone 2 criteria (`M2-AC-01` to `M2-AC-37`) and their break-its are now green in `tools/pixel-perfect-gate/tests/acceptance/m2/*.test.mjs`. Five M2b break-its are the same case in `tools/pixel-perfect-gate/tests/acceptance/m2b/m2b-shipped-break-its.test.mjs`: a Gate 1 finding does not grow `refBox`, `expected`, or `actual` (M2b-AC-19); omitting `pwa` does not fail installability (M2b-AC-23); and the three M2b-AC-59 skill-checker directions. When a gap break-it starts passing before its criterion, move it unchanged to a green `*.test.mjs` file and register it the same way. Leave the section 8 box unchecked.
 
 `node scripts/acceptance-status.mjs --static-only` checks names and wiring without executing gap tests. The green suite itself runs inside `npm test` before that command.
 

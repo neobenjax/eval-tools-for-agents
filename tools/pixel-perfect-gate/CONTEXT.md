@@ -14,10 +14,11 @@ node tools/pixel-perfect-gate/bin/pixel-gate.mjs --url http://localhost:3000 --r
 
 ## Milestone acceptance
 
-`ENFORCED_MILESTONES` is `M1` and `M2` (`tests/acceptance/manifest.mjs`). A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest` (`SPEC.md` section 13).
+`ENFORCED_MILESTONES` is `M1`, `M2`, and `M3` (`tests/acceptance/manifest.mjs`). A milestone is done only when every acceptance test in its suite passes on both `windows-latest` and `ubuntu-latest` (`SPEC.md` section 13).
 
 - **M1 green:** M1-AC-01 through M1-AC-15 in `tests/acceptance/*.test.mjs` (`suite: "pass"`). No M1 criteria remain in `pending/`.
 - **M2 gap suite:** M2-AC-01 through M2-AC-37 stay unchecked. Their own tests in `tests/acceptance/pending/*.pending.mjs` must fail with `ERR_ASSERTION`. `node scripts/acceptance-status.mjs` exits 0 while every remaining gap test fails that way, and exits 1 if a gap is missing, skipped, crashes, or starts passing. `npm test` does not invoke a pending file directly. When a gap break-it starts passing before its criterion, move it unchanged to a green `*.test.mjs` and register `{ title, suite: "pass" }`, leaving the section 8 box unchecked. M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, and M2-AC-21 are enforced that way in `tests/acceptance/m2/m2-shipped-break-its.test.mjs`.
+- **M3 gap suite:** M3-AC-01 through M3-AC-03 stay unchecked (`tests/acceptance/pending/m3-*.pending.mjs`, helpers in `tests/acceptance/m3-helpers.mjs`). They fail with `ERR_ASSERTION` until `apps/dashboard` matches the section 7 M3 interface list. Promote a passing criterion into `tests/acceptance/m3/*.test.mjs` and check its section 8 box in the same change. M3-AC-04 is green in `tests/acceptance/m3/m3-depends.test.mjs` (section 4 `Depends on:` list). No M3 break-it is registered `{ title, suite: "pass" }` under an unchecked criterion.
 - **Promote** a pending file when its assertions pass: move it to `tests/acceptance/m2/*.test.mjs`, check the matching `SPEC.md` section 8 boxes, set manifest `suite` to `"pass"`, and list the file in `package.json` `scripts.test`, in the same change. Do not edit the assertions to go green.
 - A PR that edits an existing file under `tests/`, or the acceptance gate, needs a body line `Acceptance-test change rationale:` followed by why. A blank template line, the template hint, and `n/a` do not count.
 

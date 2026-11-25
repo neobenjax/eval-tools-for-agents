@@ -5,16 +5,17 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 ## Tools
 
 - **`tools/pixel-perfect-gate`** *(Milestone 1 green, Milestone 2 gap suite)*: Hybrid Playwright CLI (`playwright` pinned to `1.65.1`) plus a cross-harness `SKILL.md`. Gate 1 (layout/runtime) and Gate 2 (`pixelmatch` / wireframe) are in the M1 green suite. Gate 3 (static audit and scenario runner) is specified and covered by the M2 gap suite; it is not implemented yet.
-- **`apps/dashboard`** *(Milestone 3)*: Eval Benchmarks & Progression Dashboard—tracking model/harness benchmark runs (primary: pass rates, iterations, `mismatchPct`, composite diffs) with the server-side Linear Delivery Board (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) as secondary.
+- **`apps/dashboard`** *(Milestone 3)*: Eval Benchmarks & Linear Delivery Board viewer. Not built yet. The gap suite is M3-AC-01 through M3-AC-03 (primary: `.visual-eval/telemetry.jsonl` grouped by model, harness, and iteration; secondary: server-side Linear stages `Todo`, `In Progress`, `In Review`, `Approved`, `Rework`). `LINEAR_API_KEY` stays off the client bundle. M3-AC-04 is green: the section 4 `Depends on:` list for the viewer row.
 
 ## Current milestone status
 
-`SPEC.md` is the source of truth. `ENFORCED_MILESTONES` is `M1` and `M2`.
+`SPEC.md` is the source of truth. `ENFORCED_MILESTONES` is `M1`, `M2`, and `M3`.
 
 - **M1 green:** M1-AC-01 through M1-AC-15 (engine plus the section 6 report). They live in `tools/pixel-perfect-gate/tests/acceptance/*.test.mjs` with manifest `suite: "pass"`.
 - **M1 gaps:** none. The report criteria M1-AC-09 through M1-AC-15 were promoted when PR #16 landed. Do not treat them as pending work.
 - **M2 gap suite:** M2-AC-01 through M2-AC-37 stay unchecked. Their own tests are `*.pending.mjs` under `tools/pixel-perfect-gate/tests/acceptance/pending/` and fail with `ERR_ASSERTION` until the criterion is met. Promote a criterion into `tests/acceptance/m2/*.test.mjs` only when its own test goes green, and check the section 8 box plus the manifest `suite` in that same change. When a gap break-it starts passing before its criterion, move it unchanged to a green `*.test.mjs` and register `{ title, suite: "pass" }`, leaving the section 8 box unchecked. M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, and M2-AC-21 are enforced that way in `tests/acceptance/m2/m2-shipped-break-its.test.mjs`.
 - **M2b** is specified in `SPEC.md` section 12 and is not in `ENFORCED_MILESTONES`.
+- **M3 gap suite:** M3-AC-01 through M3-AC-03 stay unchecked. Their tests are `tools/pixel-perfect-gate/tests/acceptance/pending/m3-*.pending.mjs` and fail with `ERR_ASSERTION` until the viewer meets them. Promote a criterion into `tests/acceptance/m3/*.test.mjs` only when its own test goes green, and check the section 8 box plus the manifest `suite` in that same change. M3-AC-04 is green in `tests/acceptance/m3/m3-depends.test.mjs`. No M3 break-it is registered `{ title, suite: "pass" }` under an unchecked criterion.
 
 ## Contract the next change must keep
 

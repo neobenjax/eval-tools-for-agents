@@ -1,0 +1,4 @@
+{"schemaVersion":1,"iteration":2,"mismatchPct":1.5,"durationMs":10,"gate1Passed":true,"gate2Passed":false,"model":"zeta","harness":"cursor","findingIds":["gate2.region.1"]}
+{"schemaVersion":1,"iteration":1,"mismatchPct":0,"durationMs":12,"gate1Passed":true,"gate2Passed":true,"model":"alpha","harness":"cursor","findingIds":[]}
+{"schemaVersion":1,"iteration":1,"mismatchPct":3,"durationMs":9,"gate1Passed":false,"gate2Passed":false,"model":"alpha","harness":"antigravity-cli","findingIds":["gate1.clipped-text.p.title"]}
+{"schemaVersion":1,"iteration":1,"mismatchPct":0.2,"durationMs":11,"gate1Passed":true,"gate2Passed":true,"model":"alpha","harness":"cursor","findingIds":[],"note":"same-group"}

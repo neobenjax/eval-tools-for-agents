@@ -7,7 +7,7 @@
     "pixel-gate": "./bin/pixel-gate.mjs"
   },
   "scripts": {
-    "test": "node --test tests/pixel-gate.test.mjs && node --test --test-concurrency=1 tests/acceptance/m1-landmarks.acceptance.test.mjs tests/acceptance/m1-engine.acceptance.test.mjs tests/acceptance/m1-report.acceptance.test.mjs tests/acceptance/m2/m2-shipped-break-its.test.mjs && node ../../scripts/acceptance-status.mjs"
+    "test": "node --test tests/pixel-gate.test.mjs && node --test --test-concurrency=1 tests/acceptance/m1-landmarks.acceptance.test.mjs tests/acceptance/m1-engine.acceptance.test.mjs tests/acceptance/m1-report.acceptance.test.mjs tests/acceptance/m2/m2-shipped-break-its.test.mjs tests/acceptance/m3/m3-depends.test.mjs && node ../../scripts/acceptance-status.mjs"
   },
   "dependencies": {
     "commander": "^12.1.0",

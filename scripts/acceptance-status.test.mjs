@@ -28,7 +28,7 @@ function realSpec() {
 }
 
 test('real SPEC section 8 M1 and M2 criteria match the manifest and test files', async () => {
-  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1', 'M2']);
+  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1', 'M2', 'M3']);
   const extracted = extractEnforcedCriteria(realSpec(), ['M1']);
   assert.deepEqual(extracted.errors, []);
   assert.deepEqual(
@@ -492,6 +492,36 @@ export const criteria = [
   );
   return dir;
 }
+
+test('real SPEC section 8 M3 criteria are the four viewer boxes', () => {
+  const m3 = extractEnforcedCriteria(realSpec(), ['M3']);
+  assert.deepEqual(m3.errors, []);
+  assert.deepEqual([...new Set(m3.criteria.map((criterion) => criterion.key))], ['SIDE-23']);
+  assert.equal(m3.criteria.length, 4);
+  assert.deepEqual(m3.criteria.map((criterion) => criterion.checked), [false, false, false, true]);
+  const m3Manifest = manifest.criteria.filter((entry) => entry.milestone === 'M3');
+  assert.deepEqual(
+    m3Manifest.map((entry) => entry.id),
+    m3.criteria.map((_, index) => `M3-AC-${String(index + 1).padStart(2, '0')}`)
+  );
+  assert.deepEqual(m3Manifest.map((entry) => entry.text), m3.criteria.map((criterion) => criterion.text));
+});
+
+test('acceptance titles unescape apostrophes so a criterion can contain one', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'acc-title-'));
+  const file = path.join(dir, 'quote.pending.mjs');
+  fs.writeFileSync(
+    file,
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('it\\'s a title', () => {\n  assert.equal(1, 1);\n});\n"
+  );
+  try {
+    const indexed = indexAcceptanceSources([file]);
+    assert.deepEqual(indexed.errors, []);
+    assert.deepEqual(indexed.tests.map((item) => item.title), ["it's a title"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test('verify.mjs and CI keep the acceptance gate wired', () => {
   const verify = fs.readFileSync(path.join(repoRoot, 'scripts', 'verify.mjs'), 'utf8');

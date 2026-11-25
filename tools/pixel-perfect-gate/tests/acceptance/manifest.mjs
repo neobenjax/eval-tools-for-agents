@@ -5,7 +5,7 @@
  * `suite: "gap"` is an expected-fail test (section 8 box unchecked).
  * Ids are stable. Do not renumber them when a criterion is added.
  */
-export const ENFORCED_MILESTONES = ['M1', 'M2'];
+export const ENFORCED_MILESTONES = ['M1', 'M2', 'M3'];
 
 const SIDE16 = 'M1';
 const SIDE24 = 'M1';
@@ -465,6 +465,52 @@ export const criteria = [
     text: 'A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.',
     breakIt: [
       'M2-AC-37 break-it: an attached recording is echoed and still never required',
+    ],
+  },
+  {
+    id: 'M3-AC-01',
+    milestone: 'M3',
+    suite: 'gap',
+    text: '**Eval Benchmarks (primary):** Groups `.visual-eval/telemetry.jsonl` by `model`, `harness`, and `iteration`.',
+    breakIt: [
+      'M3-AC-01 break-it: rows with the same model, harness, and iteration are one group',
+      'M3-AC-01 break-it: a different model, harness, or iteration is a different group',
+      'M3-AC-01 break-it: groups are ordered by model, then harness, then numeric iteration',
+      'M3-AC-01 break-it: an extra telemetry field does not create a group and a missing model, harness, iteration, or schemaVersion 1 is rejected',
+      'M3-AC-01 break-it: a missing telemetry file and a non-JSON line fail closed, and blank or CRLF lines do not create a group',
+    ],
+  },
+  {
+    id: 'M3-AC-02',
+    milestone: 'M3',
+    suite: 'gap',
+    text: '**Linear Delivery Board (secondary):** Renders live Linear stages (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) fetched server-side or via local CLI. When `LINEAR_API_KEY` is absent, the board route remains present and renders an empty state while Eval Benchmarks stay the primary view.',
+    breakIt: [
+      'M3-AC-02 break-it: a configured key uses the local CLI, and a zero-issue result is not the no-key empty state',
+      'M3-AC-02 break-it: an unknown stage and a failing local CLI are rejected and are not the empty state',
+      'M3-AC-02 break-it: Eval Benchmarks stay the primary view when the key is set',
+    ],
+  },
+  {
+    id: 'M3-AC-03',
+    milestone: 'M3',
+    suite: 'gap',
+    text: '`LINEAR_API_KEY` is read only on a server or in a local CLI. A check verifies it is absent from any client-side bundle.',
+    breakIt: [
+      'M3-AC-03 break-it: a client file containing LINEAR_API_KEY fails the check and names that file',
+      'M3-AC-03 break-it: a clean client root passes, a token outside that root does not fail, and a missing root fails',
+      'M3-AC-03 break-it: the server key value is absent from the client script and both pages',
+    ],
+  },
+  {
+    id: 'M3-AC-04',
+    milestone: 'M3',
+    suite: 'pass',
+    text: 'The viewer\'s dependency in Linear `blockedBy` is `SIDE-24` and `SIDE-19`.',
+    breakIt: [
+      'M3-AC-04 break-it: an extra dependency id is rejected',
+      'M3-AC-04 break-it: a missing dependency id is rejected',
+      'M3-AC-04 break-it: a duplicate dependency id is rejected',
     ],
   },
 ];

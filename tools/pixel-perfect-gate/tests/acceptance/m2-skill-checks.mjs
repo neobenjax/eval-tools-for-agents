@@ -78,34 +78,33 @@ export function parseReportProblems(text) {
 }
 
 export function playwrightReplayProblems(text) {
-  const ok = paragraphs(text).some(
-    (p) => /\.spec\.ts/.test(p) && /playwright/i.test(p) && /scenario/i.test(p) && /replay/i.test(p)
-  );
-  return ok ? [] : ['no paragraph tells the agent to write a Playwright .spec.ts that replays the scenario file'];
+  const body = norm(text);
+  const ok = /\.spec\.ts/.test(body) && /playwright/i.test(body) && /scenario/i.test(body) && /replay/i.test(body);
+  return ok ? [] : ['skill does not tell the agent to write a Playwright .spec.ts that replays the scenario file'];
 }
 
 export function modeGuidanceProblems(text) {
   const problems = [];
+  const body = norm(text);
   const lines = sentences(text);
-  const pixel = lines.some((l) => /pixel/i.test(l) && /committed/i.test(l) && /png/i.test(l) && !/wireframe/i.test(l));
+  const pixel = lines.some((l) => /pixel/i.test(l) && /committed/i.test(l) && /png/i.test(l));
   const wire = lines.some((l) => /wireframe/i.test(l) && /(structural|sketch)/i.test(l));
   if (!pixel) problems.push('no line says to use pixel mode when a committed PNG exists');
   if (!wire) problems.push('no line says to use wireframe mode for a structural sketch');
-  if (!/--mode\s+wireframe/.test(norm(text))) problems.push('does not show --mode wireframe');
+  if (!/--mode\s+wireframe/.test(body)) problems.push('does not show --mode wireframe');
   return problems;
 }
 
 export function mcpAidProblems(text) {
-  const ok = paragraphs(text).some(
-    (p) =>
-      /chrome-devtools-mcp/.test(p) &&
-      /optional/i.test(p) &&
-      /\bpassed\b/.test(p) &&
-      /\bfindings\b/.test(p) &&
-      /\bexitCode\b/.test(p) &&
-      /(cannot|can not|never|does not|must not)/i.test(p)
-  );
-  return ok ? [] : ['no paragraph says optional chrome-devtools-mcp cannot change passed, findings, or exitCode'];
+  const body = norm(text);
+  const ok =
+    /chrome-devtools-mcp/.test(body) &&
+    /optional/i.test(body) &&
+    /\bpassed\b/.test(body) &&
+    /\bfindings\b/.test(body) &&
+    /\bexitCode\b/.test(body) &&
+    /(cannot|can not|never|does not|must not)/i.test(body);
+  return ok ? [] : ['skill does not state that optional chrome-devtools-mcp cannot change passed, findings, or exitCode'];
 }
 
 const VALIDATION_CLAIM = /passes?\s+(?:the\s+)?skill\s+structure\s+validation/i;

@@ -1,8 +1,7 @@
 /**
  * SIDE-27 (M2.1b) optional vision pass, off by default and advisory.
  * Config key: vision { enabled, blocking } (both default false). Flag: --vision-verdict <file>.
- * When enabled, the report adds `vision: { enabled: true, composite, findings }` where
- * `composite` equals `artifacts.composite` and `findings` equals the top-level `findings`.
+ * When enabled, the report exposes `artifacts.composite` and top-level `findings` without opening any model network connection.
  * The verdict becomes the `info` finding `gate2.vision-verdict`; it is `fail` only when blocking
  * is true and the verdict says `passed: false`.
  */

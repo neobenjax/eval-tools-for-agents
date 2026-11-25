@@ -1,6 +1,6 @@
 /**
  * SIDE-19 (M2.1) scenario runner. `pixel-gate --config <file> --scenario <id>` replays the steps in the
- * scenario file. In scenario mode only Gate 3 runs; Gate 1 and Gate 2 report `skipped`.
+ * scenario file and stops on the first failed step.
  * Step shapes: goto{url}, click{selector}, fill{selector,value}, toggle{selector},
  * wait{ms} or wait{selector,state}; any step may carry timeoutMs.
  * The fixture server records fetches to /__<name>, so a test proves what really happened in the page.

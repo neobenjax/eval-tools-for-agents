@@ -6,7 +6,7 @@ Closes SIDE-
 
 ## Summary of Changes
 - **Issue Key:** `SIDE-`
-- **Milestone:** [ ] M0 | [ ] M1 | [ ] M2 | [ ] M3
+- **Milestone:** [ ] M0 | [ ] M1 | [ ] M2 | [ ] M2b | [ ] M3
 - **Description:**
 - **Out of scope / left for later (be explicit):**
 
@@ -32,6 +32,16 @@ Closes SIDE-
 - Turned green:
 - Still gap:
 - Acceptance-test change rationale:
+
+---
+
+## Before you open a PR
+- [ ] After each fix, `git grep` updated every other statement of that rule in the same commit (`SPEC.md`, docs, test headers, and this PR body)
+- [ ] Each fix was undone once on a scratch copy and a test failed. If none failed, the assert now checks finding ids and required keys, not only a message string or a value
+- [ ] Every OS-specific assert, including break-its, has a platform guard (pixel `mismatchPct` blocks on `ubuntu-latest` only; Windows and macOS report it; existing guard is `process.platform !== 'win32'`)
+- [ ] Break-It Checks and Consistency Sweep below contain the command and the output
+- [ ] `node scripts/verify.mjs` passed, and CI stays green on `windows-latest` and `ubuntu-latest`
+- [ ] Rebased on (or merged) the latest `main`, then `node scripts/verify.mjs` was run again before requesting review (PR CI checks the merge commit only as of when it ran)
 
 ---
 

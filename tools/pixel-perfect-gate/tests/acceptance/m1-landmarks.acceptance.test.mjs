@@ -1,3 +1,13 @@
+/**
+ * Green break-it tests for M1-AC-01 (landmark coordinates and the 4px boundary).
+ * M1-AC-01 through M1-AC-15 are the green suite. M2-AC-01 through M2-AC-37 are pending gap tests
+ * and must fail with ERR_ASSERTION until promoted (SPEC.md section 13). ENFORCED_MILESTONES is M1 and M2.
+ * Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable branch key;
+ * error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits.
+ * Playwright is pinned to 1.65.1. mismatchPct blocks on ubuntu-latest; Windows and macOS report it
+ * without blocking. Editing this file requires "Acceptance-test change rationale:" in the PR body.
+ */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compareWireframeLandmarks } from '../../src/visual-diff.mjs';

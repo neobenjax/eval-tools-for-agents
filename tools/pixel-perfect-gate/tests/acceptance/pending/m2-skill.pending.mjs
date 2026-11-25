@@ -1,5 +1,13 @@
 /**
- * SIDE-20 (M2.2) cross-harness SKILL.md.
+ * M2.2 cross-harness skill gap tests. Every test fails with ERR_ASSERTION until the product meets it.
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are gaps. ENFORCED_MILESTONES is M1 and M2.
+ * Promote to tests/acceptance/m2/*.test.mjs, check the section 8 box, and set suite to "pass" together
+ * (SPEC.md section 13). Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable
+ * branch key; error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits. Playwright is pinned to 1.65.1. mismatchPct blocks
+ * on ubuntu-latest; Windows and macOS report it (guard process.platform !== "win32").
+ * Editing this file requires "Acceptance-test change rationale:" in the PR body.
+ * Cross-harness SKILL.md.
  * The skill lives at tools/pixel-perfect-gate/skills/pixel-perfect-gate/SKILL.md so the installer
  * can link the whole directory under the skill name `pixel-perfect-gate`.
  * The text checks are in ../m2-skill-checks.mjs so M2-AC-28 can run the same check on mutated copies.

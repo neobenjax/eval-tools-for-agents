@@ -1,6 +1,19 @@
 /**
- * SIDE-25 (M2.0a) global pixel-gate install and per-project config.
- * Gap suite: every test fails with ERR_ASSERTION until the product meets it.
+ * M2.0a global pixel-gate install and per-project config. Gap suite: every test in this file
+ * fails with ERR_ASSERTION until the product meets it (SPEC.md section 13). Break-its that
+ * start passing before their criterion move unchanged to a green *.test.mjs and are registered
+ * { title, suite: "pass" }, leaving the section 8 box unchecked. M2-AC-02, M2-AC-04, and
+ * M2-AC-05 are that case, in ../m2/m2-shipped-break-its.test.mjs.
+ * M1-AC-01 through M1-AC-15 are
+ * green. M2-AC-01 through M2-AC-37 are gaps. ENFORCED_MILESTONES is M1 and M2. Promote this file
+ * to tests/acceptance/m2/*.test.mjs, check the section 8 box, and set manifest suite to "pass"
+ * in the same change. npm test must not run this file directly.
+ * Section 6: schemaVersion 1; gates.gate1, gates.gate2, gates.gate3; findings[].id is the stable
+ * branch key; error is null on a finished run and { message } when the run cannot finish; a skipped
+ * gate is { passed: true, skipped: true, reason }. --help and --version are the only non-JSON exits.
+ * Playwright is pinned to 1.65.1. mismatchPct blocks on ubuntu-latest; Windows and macOS report it
+ * without blocking (guard: process.platform !== "win32"). A PR that edits this file needs
+ * "Acceptance-test change rationale:" even for a comment-only edit.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

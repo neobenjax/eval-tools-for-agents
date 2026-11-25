@@ -1,5 +1,15 @@
 /**
- * Milestone 1 acceptance tests for the section 6 report (SIDE-24).
+ * Green suite for the section 6 report (M1-AC-09 through M1-AC-15). Not a gap file.
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 stay pending and must fail
+ * with ERR_ASSERTION until promoted to tests/acceptance/m2/*.test.mjs (SPEC.md section 13:
+ * check the section 8 box and set manifest suite to "pass" in that same change).
+ * ENFORCED_MILESTONES is M1 and M2.
+ * Envelope: schemaVersion 1; gates.gate1, gates.gate2, gates.gate3; findings[].id is the stable
+ * branch key; error is null on a finished run and { message } when the run cannot finish;
+ * a skipped gate is { passed: true, skipped: true, reason }. --help and --version are the only non-JSON exits.
+ * Playwright is pinned to 1.65.1. mismatchPct blocks on ubuntu-latest; Windows and macOS report it
+ * without blocking (M2-AC-09 uses process.platform !== "win32").
+ * Editing this file requires a PR-body line "Acceptance-test change rationale:" even for a comment-only edit.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';

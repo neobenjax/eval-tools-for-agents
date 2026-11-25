@@ -1,5 +1,14 @@
 /**
- * SIDE-19 (M2.1) scenario runner. `pixel-gate --config <file> --scenario <id>` replays the steps in the
+ * M2.1 scenario runner gap tests. Every test fails with ERR_ASSERTION until the product meets it.
+ * M1-AC-01 through M1-AC-15 are green. M2-AC-01 through M2-AC-37 are this gap suite.
+ * ENFORCED_MILESTONES is M1 and M2. Promote passing tests to tests/acceptance/m2/*.test.mjs, check
+ * the section 8 box, and set manifest suite to "pass" in the same change (SPEC.md section 13).
+ * Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable branch key;
+ * error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits. Playwright is pinned to 1.65.1.
+ * mismatchPct blocks on ubuntu-latest; Windows and macOS report it (guard process.platform !== "win32").
+ * Editing this file requires "Acceptance-test change rationale:" in the PR body.
+ * `pixel-gate --config <file> --scenario <id>` replays the steps in the
  * scenario file and stops on the first failed step.
  * Step shapes: goto{url}, click{selector}, fill{selector,value}, toggle{selector},
  * wait{ms} or wait{selector,state}; any step may carry timeoutMs.

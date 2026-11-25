@@ -1,7 +1,13 @@
 /**
- * Break-it tests whose behavior already ships. Their parent section 8 criteria
- * stay unchecked because each criterion's own test still fails.
- * Assertions are unchanged from the gap files they moved out of.
+ * Green break-its under still-unchecked criteria (M2-AC-02, M2-AC-04, M2-AC-05, M2-AC-18, M2-AC-21).
+ * Registered in the manifest as { title, suite: "pass" }. Assertions are unchanged from the gap
+ * files they moved out of. The section 8 boxes stay unchecked until each criterion's own test passes.
+ * When another gap break-it starts passing early, move it here the same way (SPEC.md section 13).
+ * Section 6: schemaVersion 1; gates.gate1/gate2/gate3; findings[].id is the stable branch key;
+ * error is null or { message }; a skipped gate is { passed: true, skipped: true, reason };
+ * --help and --version are the only non-JSON exits. Playwright is pinned to 1.65.1.
+ * mismatchPct blocks on ubuntu-latest; Windows and macOS report it (guard process.platform !== "win32").
+ * Editing this file requires "Acceptance-test change rationale:" in the PR body.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

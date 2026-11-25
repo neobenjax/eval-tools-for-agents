@@ -176,7 +176,36 @@ export function listAcceptanceSources(dir) {
   return files.sort();
 }
 
-const TITLE_CALL = /\b(?:test|serialTest)\(\s*'([^']*)'/g;
+const TITLE_CALL = /\b(?:test|serialTest)\(\s*'/g;
+
+/**
+ * Read one single-quoted JavaScript string starting at `source[start]` (the opening quote).
+ * Supports the escapes a criterion title needs (`\'`, `\\`, and `\uXXXX`) so the indexed
+ * title equals the string the test runner executes.
+ */
+function readJsSingleQuoted(source, start) {
+  if (source[start] !== "'") return null;
+  let value = '';
+  for (let i = start + 1; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === '\\') {
+      const next = source[i + 1];
+      if (next === undefined) return null;
+      if (next === 'u' && /^[0-9a-fA-F]{4}/.test(source.slice(i + 2, i + 6))) {
+        value += String.fromCharCode(Number.parseInt(source.slice(i + 2, i + 6), 16));
+        i += 5;
+        continue;
+      }
+      const simple = { n: '\n', r: '\r', t: '\t', '\\': '\\', "'": "'", '"': '"' };
+      value += Object.prototype.hasOwnProperty.call(simple, next) ? simple[next] : next;
+      i += 1;
+      continue;
+    }
+    if (ch === "'") return { value, end: i + 1 };
+    value += ch;
+  }
+  return null;
+}
 
 export function indexAcceptanceSources(files) {
   const errors = [];
@@ -195,7 +224,13 @@ export function indexAcceptanceSources(files) {
       }
     }
     for (const match of source.matchAll(TITLE_CALL)) {
-      tests.push({ title: match[1], file, kind });
+      const quoteAt = match.index + match[0].length - 1;
+      const parsed = readJsSingleQuoted(source, quoteAt);
+      if (!parsed) {
+        errors.push(`${file} has a test title that is not a closed single-quoted string.`);
+        continue;
+      }
+      tests.push({ title: parsed.value, file, kind });
     }
   }
   return { tests, errors };

@@ -465,9 +465,9 @@ A live model loop is evidence, not a merge condition.
 
 Depends on SIDE-24 and SIDE-19. Not required for the v1 Definition of Done. Blocked until one real target project has produced `telemetry.jsonl` under schema version `1`. The acceptance tests pin the viewer command and the board routes in section 7 ("Interfaces pinned by the M3 acceptance tests"). `M3-AC-04` reads the section 4 `Depends on:` list for this row. Ids are `M3-AC-01` through `M3-AC-04` in the order of the boxes below.
 
-- [ ] **Eval Benchmarks (primary):** Groups `.visual-eval/telemetry.jsonl` by `model`, `harness`, and `iteration`.
-- [ ] **Linear Delivery Board (secondary):** Renders live Linear stages (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) fetched server-side or via local CLI. When `LINEAR_API_KEY` is absent, the board route remains present and renders an empty state while Eval Benchmarks stay the primary view.
-- [ ] `LINEAR_API_KEY` is read only on a server or in a local CLI. A check verifies it is absent from any client-side bundle.
+- [x] **Eval Benchmarks (primary):** Groups `.visual-eval/telemetry.jsonl` by `model`, `harness`, and `iteration`.
+- [x] **Linear Delivery Board (secondary):** Renders live Linear stages (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) fetched server-side or via local CLI. When `LINEAR_API_KEY` is absent, the board route remains present and renders an empty state while Eval Benchmarks stay the primary view.
+- [x] `LINEAR_API_KEY` is read only on a server or in a local CLI. A check verifies it is absent from any client-side bundle.
 - [x] The viewer's dependency in Linear `blockedBy` is `SIDE-24` and `SIDE-19`.
 
 ### SIDE-28 reference bundle and capture (`M2b.1`)

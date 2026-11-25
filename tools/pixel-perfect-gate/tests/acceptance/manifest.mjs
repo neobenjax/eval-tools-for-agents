@@ -5,7 +5,7 @@
  * `suite: "gap"` is an expected-fail test (section 8 box unchecked).
  * Ids are stable. Do not renumber them when a criterion is added.
  */
-export const ENFORCED_MILESTONES = ['M1', 'M2', 'M3'];
+export const ENFORCED_MILESTONES = ['M1', 'M2', 'M2b', 'M3'];
 
 const SIDE16 = 'M1';
 const SIDE24 = 'M1';
@@ -465,6 +465,545 @@ export const criteria = [
     text: 'A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.',
     breakIt: [
       'M2-AC-37 break-it: an attached recording is echoed and still never required',
+    ],
+  },
+  {
+    id: 'M2b-AC-01',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A route with no `reference` behaves exactly as today (`kind: \"png\"`); the existing test suite passes unchanged.",
+    breakIt: [
+      "M2b-AC-01 break-it: an explicit reference.kind of url is not compared as a committed png",
+    ],
+  },
+  {
+    id: 'M2b-AC-02',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`pixel-gate reference capture` on an `html-file` fixture (inline CSS + JS, committed font) writes PNG, `.landmarks.json`, `.styles.json`, and `manifest.json` under `.visual-eval/references/<route-id>/<viewport-name>/`, and nothing outside `.visual-eval/`.",
+    breakIt: [
+      "M2b-AC-02 break-it: a missing html-file source fails and writes no reference bundle",
+    ],
+  },
+  {
+    id: 'M2b-AC-03',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Capturing the same `html-file` twice on `ubuntu-latest` produces byte-identical PNGs (same `sha256` in both manifests).",
+    breakIt: [
+      "M2b-AC-03 break-it: a changed source sha256 does not reuse the previous PNG",
+    ],
+  },
+  {
+    id: 'M2b-AC-04',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Gate 2 run against that bundle and against the same prototype served as the target exits `0` with `mismatchPct` `0`.",
+    breakIt: [
+      "M2b-AC-04 break-it: a one-pixel change in the target fails Gate 2 on the pixel source of truth",
+    ],
+  },
+  {
+    id: 'M2b-AC-05',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Editing one PNG without updating `manifest.json` fails with `gate2.reference-tampered.<route>.<viewport>`.",
+    breakIt: [
+      "M2b-AC-05 break-it: updating manifest sha256.png to the edited bytes clears the tamper finding",
+    ],
+  },
+  {
+    id: 'M2b-AC-06',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A `url` capture of a local fixture server applies `reference.prepare` (a fixture cookie banner is dismissed before capture), and records a `.har`.",
+    breakIt: [
+      "M2b-AC-06 break-it: without reference.prepare the cookie banner remains in the capture",
+    ],
+  },
+  {
+    id: 'M2b-AC-07',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A `url` capture prints the section 12.8 copyright disclaimer and refuses to capture until the user acknowledges it (`reference.acknowledgeCopyright: true` in config, `--acknowledge-copyright`, or answering `yes` at the interactive prompt). Without it, it exits `1` with `gate2.reference-copy-unacknowledged.<route>` and a `blocked` stop reason. With it, `manifest.json` records `copyAcknowledgedAt`. There is no rights field and no origin allowlist.",
+    breakIt: [
+      "M2b-AC-07 break-it: a rights field does not authorize a url capture",
+      "M2b-AC-07 break-it: an origin allowlist does not authorize a url capture",
+      "M2b-AC-07 break-it: answering no at the prompt does not authorize a url capture",
+    ],
+  },
+  {
+    id: 'M2b-AC-08',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A loop run never re-reads a `url` source: stopping the fixture server after capture does not change the Gate 2 result. `--refresh` re-captures and writes a new `capturedAt`.",
+    breakIt: [
+      "M2b-AC-08 break-it: --refresh is what changes capturedAt",
+    ],
+  },
+  {
+    id: 'M2b-AC-09',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The SIDE-19 scenario fixture runs against an `html-file` reference and a target that matches it, and exits `0` with no `gate3.parity*` findings.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-10',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A target whose button renders but does nothing (handler removed) fails with `gate3.parity.<scenario-id>.<step>`, even though Gate 2 on the first screen passes.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-11',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A target whose post-click state differs visually fails with `gate3.parity-state.<scenario-id>.<step>`, and the report lists both state screenshot paths.",
+    breakIt: [
+      "M2b-AC-11 break-it: a matching post-click state does not emit gate3.parity-state",
+    ],
+  },
+  {
+    id: 'M2b-AC-12',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A step with a CSS selector that resolves only on the reference fails with `gate3.parity-unportable-locator.<scenario-id>.<step>`. The same step written with `getByRole` passes after a class rename on the target.",
+    breakIt: [
+      "M2b-AC-12 break-it: a CSS selector that resolves on both sides is not an unportable locator",
+    ],
+  },
+  {
+    id: 'M2b-AC-13',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A `screenshot` reference reports `gates.gate3.parity` as `{ \"skipped\": true, \"reason\": \"reference has no behavior\" }` and never `passed: true` on parity alone.",
+    breakIt: [
+      "M2b-AC-13 break-it: a skipped parity object does not set passed true when Gate 2 fails",
+    ],
+  },
+  {
+    id: 'M2b-AC-14',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Reference and target run in separate fresh contexts; a test proves that state set on the reference (e.g. `localStorage`) is not visible to the target.",
+    breakIt: [
+      "M2b-AC-14 break-it: the reference context still observes the localStorage value it set",
+    ],
+  },
+  {
+    id: 'M2b-AC-15',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Every report carries `loop` with `runId`, `iteration`, `maxIterations` `5`, `best`, `delta`, `stopReason`, and `continue`, on pass, gate failure, and error exits.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-16',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A fixture sequence of five telemetry rows asserts each stop reason: `passed`, `blocked` (missing reference), `regression` (new fail id and higher `failCount`), `no-progress` (same fail ids, `mismatchPct` change `< 0.1` on two consecutive iterations), and `max-iterations`.",
+    breakIt: [
+      "M2b-AC-16 break-it: a mismatchPct change of 0.1 is not no-progress",
+      "M2b-AC-16 break-it: a mismatchPct change below 0.1 with the same fail ids is no-progress",
+    ],
+  },
+  {
+    id: 'M2b-AC-17',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Two different `runId` values in the same `telemetry.jsonl` do not affect each other's `best` or `delta`, so a large migration split into separate loops (owner decision 8) tracks each loop independently.",
+    breakIt: [
+      "M2b-AC-17 break-it: a better best on another runId is ignored",
+    ],
+  },
+  {
+    id: 'M2b-AC-18',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A config or flag that tries to raise `maxIterations` above `5` is rejected with a config error (`blocked`); the report still shows `maxIterations` `5`.",
+    breakIt: [
+      "M2b-AC-18 break-it: maxIterations of 5 is accepted",
+    ],
+  },
+  {
+    id: 'M2b-AC-19',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`findings` keep the SIDE-24 shape; the optional `refBox`, `expected`, and `actual` keys appear only when set, and `schemaVersion` stays `1`.",
+    breakIt: [
+      { title: "M2b-AC-19 break-it: a Gate 1 finding does not grow refBox, expected, or actual keys", suite: "pass" },
+    ],
+  },
+  {
+    id: 'M2b-AC-20',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`target.kind: \"dev-server\"` starts `target.command`, waits for `target.readyUrl`, and kills the whole process tree on exit, on both `windows-latest` and `ubuntu-latest` (no orphaned process after the run, asserted by the test).",
+    breakIt: [
+      "M2b-AC-20 break-it: the ready check is an HTTP 200 on target.readyUrl before capture",
+    ],
+  },
+  {
+    id: 'M2b-AC-21',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A command that never becomes ready fails within `target.readyTimeoutMs` with a `blocked` stop reason and a structured `error`.",
+    breakIt: [
+      "M2b-AC-21 break-it: the never-ready process is not left running",
+    ],
+  },
+  {
+    id: 'M2b-AC-22',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Visual capture uses `serviceWorkers: \"block\"`; a fixture whose service worker serves a stale asset does not change the Gate 2 result.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-23',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "With `pwa` enabled, a fixture missing its manifest icon fails with `gate1.pwa-installability.<error-id>` taken from `Page.getInstallabilityErrors`, and the fixed fixture passes.",
+    breakIt: [
+      { title: "M2b-AC-23 break-it: with pwa omitted, a page is not failed for installability", suite: "pass" },
+      "M2b-AC-23 break-it: the fixed installable fixture has no failing installability finding",
+    ],
+  },
+  {
+    id: 'M2b-AC-24',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`target.kind: \"static\"` serves a single HTML file and a directory without extra config.",
+    breakIt: [
+      "M2b-AC-24 break-it: static mode does not require target.command or baseUrl",
+    ],
+  },
+  {
+    id: 'M2b-AC-25',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "With no `runtime` set, `playground` is used. On `windows-latest` and `ubuntu-latest` it starts WordPress from a committed blueprint without Docker and reaches REST `GET /wp-json/`.",
+    breakIt: [
+      "M2b-AC-25 break-it: an explicit runtime of existing does not spawn playground",
+    ],
+  },
+  {
+    id: 'M2b-AC-26',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`runtime: \"wp-env\"` and `runtime: \"existing\"` (a local or remote site URL) are accepted. An unreachable site gives a `blocked` stop reason with a structured `error`, not a gate failure.",
+    breakIt: [
+      "M2b-AC-26 break-it: a reachable existing URL is not a blocked error",
+    ],
+  },
+  {
+    id: 'M2b-AC-27',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`buildType` accepts `block-theme`, `classic-theme`, `hybrid-theme`, `patterns`, `custom-blocks`, `page-builder`, and `any` (default). The accuracy rule is the same for every build type: Gate 2 tier A on the browser output, plus SIDE-29 parity.",
+    breakIt: [
+      "M2b-AC-27 break-it: a buildType outside the allowed set is a config error",
+    ],
+  },
+  {
+    id: 'M2b-AC-28',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A classic-theme fixture (PHP template, no blocks) and a block-theme fixture that both render the prototype pass with the default config. No structure finding appears, because `structureCheck` defaults to `off`.",
+    breakIt: [
+      "M2b-AC-28 break-it: a core/html block produces no structure finding while structureCheck is off",
+    ],
+  },
+  {
+    id: 'M2b-AC-29',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "With `structureCheck: \"advisory\"`, a page whose whole content is one `core/html` block reports `gate1.wp-freeform-html.1` as `info`, and a block whose saved markup does not validate reports `gate1.wp-invalid-block.<n>` as `info`. Neither changes `passed`; a test asserts exit `0` when the browser output matches.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-30',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A converted fixture page matches its `html-file` prototype within the tier A rule, comparing `target.selector` (default `main`, configurable) against `reference.selector`. Setting `target.selector` to `body` compares the whole page.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-31',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The front-end capture contains no `#wpadminbar` (asserted on the DOM and the PNG height).",
+    breakIt: [
+      "M2b-AC-31 break-it: a logged-in capture still has no wpadminbar in the DOM or the PNG height",
+    ],
+  },
+  {
+    id: 'M2b-AC-32',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "SIDE-29 parity passes on the converted page only when the prototype's interaction is re-implemented in a way WordPress keeps (enqueued script, block `viewScript`, or page-builder widget); with the script dropped, parity fails.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-33',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Credentials (application password) are read from the environment only and never appear in stdout, findings, or artifacts.",
+    breakIt: [
+      "M2b-AC-33 break-it: a password placed in the config is rejected and is not forwarded",
+    ],
+  },
+  {
+    id: 'M2b-AC-34',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A screenshot whose `width / dpr` does not equal a declared viewport width fails with `gate2.reference-scale-unknown.<route>` and is not resized.",
+    breakIt: [
+      "M2b-AC-34 break-it: a screenshot whose width divided by dpr equals the viewport is not scale-unknown",
+    ],
+  },
+  {
+    id: 'M2b-AC-35',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`reference.crop` removes a fixture browser bar; the cropped PNG is what `manifest.json` hashes.",
+    breakIt: [
+      "M2b-AC-35 break-it: without crop the manifest hash covers the uncropped PNG including the bar",
+    ],
+  },
+  {
+    id: 'M2b-AC-36',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`reference.region: \"viewport\"` compares only the top `height / dpr` CSS px of a taller target; `\"full\"` keeps the section 5 exact-height failure.",
+    breakIt: [
+      "M2b-AC-36 break-it: omitting reference.region does not crop to the viewport",
+    ],
+  },
+  {
+    id: 'M2b-AC-37',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A JPEG input is accepted only for `kind: \"screenshot\"` and is marked tier C.",
+    breakIt: [
+      "M2b-AC-37 break-it: a JPEG reference with kind png is rejected",
+      "M2b-AC-37 break-it: a WebP screenshot is accepted and marked tier C",
+    ],
+  },
+  {
+    id: 'M2b-AC-38',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Tier C comparison is advisory: a target with `mismatchPct` `35` against its screenshot exits `0` (when Gates 1/3 pass), reports `info` findings, and `gates.gate2.advisory` is `{ \"similarityPct\": 65, \"thresholdPct\": 80, \"met\": false }`.",
+    breakIt: [
+      "M2b-AC-38 break-it: the same 35 percent mismatch against a tier A html-file reference does not exit 0",
+    ],
+  },
+  {
+    id: 'M2b-AC-39',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Default threshold: `reference.maxDiff` defaults to `20` for tier B/C (similarity `>= 80%`). Setting `reference.maxDiff: 5` on one route changes only that route's `thresholdPct` to `95`.",
+    breakIt: [
+      "M2b-AC-39 break-it: a tier A route keeps maxDiff 0.5 when a sibling screenshot route sets maxDiff 5",
+    ],
+  },
+  {
+    id: 'M2b-AC-40',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "With `advisory.met` false and no other stop rule firing, `loop.continue` is `true` and `stopReason` is `null`. With `passed` true and every advisory target met, `stopReason` is `passed`.",
+    breakIt: [
+      "M2b-AC-40 break-it: a blocked intake error stops the loop even when advisory.met is false",
+    ],
+  },
+  {
+    id: 'M2b-AC-41',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Intake errors (`gate2.reference-scale-unknown.*`, unreadable image) still fail with `blocked`. They are setup problems, not comparison results.",
+    breakIt: [
+      "M2b-AC-41 break-it: an unreadable image is blocked and a high mismatch is not blocked",
+    ],
+  },
+  {
+    id: 'M2b-AC-42',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`design.frames[]` maps a frame to route + viewport; a frame whose width differs from the viewport fails with `gate2.frame-viewport-mismatch.<nodeId>`.",
+    breakIt: [
+      "M2b-AC-42 break-it: a frame whose width equals the viewport is not a frame-viewport mismatch",
+    ],
+  },
+  {
+    id: 'M2b-AC-43',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "With a Figma token in the environment, capture exports each frame through REST `/v1/images` at `scale = dpr`. Without a token, a manually exported PNG with the same name produces the same bundle shape. CI uses only the committed manual export, with no network.",
+    breakIt: [
+      "M2b-AC-43 break-it: with no token the figma stub receives no request",
+    ],
+  },
+  {
+    id: 'M2b-AC-44',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Layer geometry produces a `.landmarks.json` for layers named after configured landmarks; wireframe mode then reports an `info` finding (advisory, tier B) for a target whose `header` moves `> 4` CSS px.",
+    breakIt: [
+      "M2b-AC-44 break-it: a header shift of exactly 4 CSS px does not emit the landmark info finding",
+      "M2b-AC-44 break-it: a header shift of 5 CSS px emits an info finding and passed stays true",
+    ],
+  },
+  {
+    id: 'M2b-AC-45',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Tokens (from the Variables REST API or a saved `get_variable_defs` output) produce `.tokens.json`, consumed by SIDE-35.",
+    breakIt: [
+      "M2b-AC-45 break-it: a token mismatch becomes a style finding and a matching token does not",
+    ],
+  },
+  {
+    id: 'M2b-AC-46',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Prototype `interactions` (`ON_CLICK` → `NODE`/`NAVIGATE`) produce `scenarios.draft.json`. Drafts are never executed as gating scenarios until a human moves them into the scenario file (owner decision 13).",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-47',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Tier B is advisory with the same default and override as SIDE-33 (`reference.maxDiff` default `20`): pixel, landmark, and token findings against a design file are `info` and never change `passed`.",
+    breakIt: [
+      "M2b-AC-47 break-it: reference.maxDiff 5 on a design-file route sets thresholdPct to 95 and passed stays true",
+    ],
+  },
+  {
+    id: 'M2b-AC-48',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Figma access follows owner decision 9: manual export in CI; REST export only when `FIGMA_TOKEN` is set (never printed or written to artifacts); Figma/Penpot/Sketch MCP output is never read by the gate except a saved `get_variable_defs` file named in config.",
+    breakIt: [
+      "M2b-AC-48 break-it: an unnamed MCP variable file is not read",
+    ],
+  },
+  {
+    id: 'M2b-AC-49',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "For mapped elements, computed `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `line-height`, `padding`, `margin`, `gap`, and `border-radius` are compared with the reference `.styles.json` or `.tokens.json`.",
+    breakIt: [
+      "M2b-AC-49 break-it: a property outside the compared list is not a finding",
+    ],
+  },
+  {
+    id: 'M2b-AC-50',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A one-step color change (e.g. `#1a73e8` → `#1a74e8`) that stays under `maxDiff` in Gate 2 still fails with `gate2.style.<selector-slug>.color` and `expected` / `actual` set.",
+    breakIt: [
+      "M2b-AC-50 break-it: an identical computed color does not emit gate2.style.button.color",
+    ],
+  },
+  {
+    id: 'M2b-AC-51',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "An element missing on the target is one finding, not one per property.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-52',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "Style findings are `fail` against tier A references (`.styles.json` from `html-file` / `url`) and `info` against tier B tokens (`.tokens.json` from a design file).",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-53',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "`SKILL.md` has one playbook per `reference.kind` (cases 1–5 in section 12.1): which command to run first, which tier applies, and which optional MCP servers help.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-54',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The skill tells the agent to obey `loop.continue` and `loop.stopReason`, and to return to `loop.best.iteration` on `regression`.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-55',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The skill tells the agent to check whether Figma, Penpot, Sketch, WordPress, Playwright, or Chrome DevTools MCP servers are enabled and to use them only for context, never to change `passed`.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-56',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The skill tells the agent to show the user the copyright disclaimer before a `url` capture and never to set `reference.acknowledgeCopyright` or pass `--acknowledge-copyright` on the user's behalf.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-57',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The skill tells the agent to split a large migration into separate loops (one `runId` per route or small route group) instead of exceeding 5 iterations, and never to move `scenarios.draft.json` entries into the scenario file itself (a human approves them).",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-58',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "The skill tells the agent that tier B/C results are advisory: keep looping toward the similarity target, but never report the route as failed because of them.",
+    breakIt: [
+
+    ],
+  },
+  {
+    id: 'M2b-AC-59',
+    milestone: 'M2b',
+    suite: 'gap',
+    text: "A test reads the skill file and fails if any of the five playbooks, the `loop.continue` rule, the copyright-acknowledgement rule, the advisory rule, the split-loops rule, or the draft-scenario rule is missing.",
+    breakIt: [
+      { title: "M2b-AC-59 break-it: deleting one playbook heading from a complete skill is detected", suite: "pass" },
+      { title: "M2b-AC-59 break-it: a skill that keeps every required rule has no problems", suite: "pass" },
+      { title: "M2b-AC-59 break-it: an extra playbook heading does not fail the checker", suite: "pass" },
     ],
   },
   {

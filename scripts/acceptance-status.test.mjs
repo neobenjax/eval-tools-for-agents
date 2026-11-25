@@ -14,6 +14,7 @@ import {
   extractEnforcedCriteria,
   gapExecutionErrors,
   indexAcceptanceSources,
+  readJsString,
   staticAcceptanceErrors,
 } from './acceptance-lib.mjs';
 import { runAcceptanceStatus } from './acceptance-status.mjs';
@@ -28,7 +29,7 @@ function realSpec() {
 }
 
 test('real SPEC section 8 M1 and M2 criteria match the manifest and test files', async () => {
-  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1', 'M2', 'M3']);
+  assert.deepEqual(manifest.ENFORCED_MILESTONES, ['M1', 'M2', 'M2b', 'M3']);
   const extracted = extractEnforcedCriteria(realSpec(), ['M1']);
   assert.deepEqual(extracted.errors, []);
   assert.deepEqual(
@@ -56,6 +57,28 @@ test('real SPEC section 8 M1 and M2 criteria match the manifest and test files',
   const m2Manifest = manifest.criteria.filter((entry) => entry.milestone === 'M2');
   assert.equal(m2Manifest.length, 37);
   assert.deepEqual(m2Manifest.map((entry) => entry.id), m2.criteria.map((_, i) => `M2-AC-${String(i + 1).padStart(2, '0')}`));
+
+  const m2b = extractEnforcedCriteria(realSpec(), ['M2b']);
+  assert.deepEqual(m2b.errors, []);
+  const m2bPerIssue = {};
+  for (const criterion of m2b.criteria) m2bPerIssue[criterion.key] = (m2bPerIssue[criterion.key] || 0) + 1;
+  assert.deepEqual(m2bPerIssue, {
+    'SIDE-28': 8,
+    'SIDE-29': 6,
+    'SIDE-30': 5,
+    'SIDE-31': 5,
+    'SIDE-32': 9,
+    'SIDE-33': 8,
+    'SIDE-34': 7,
+    'SIDE-35': 4,
+    'SIDE-36': 7,
+  });
+  const m2bManifest = manifest.criteria.filter((entry) => entry.milestone === 'M2b');
+  assert.equal(m2bManifest.length, 59);
+  assert.deepEqual(
+    m2bManifest.map((entry) => entry.id),
+    m2b.criteria.map((_, i) => `M2b-AC-${String(i + 1).padStart(2, '0')}`)
+  );
 
   const code = await runAcceptanceStatus(['--static-only']);
   assert.equal(code, 0);
@@ -531,4 +554,29 @@ test('verify.mjs and CI keep the acceptance gate wired', () => {
   assert.match(pkg, /acceptance-status\.mjs/);
   assert.match(ci, /PR_BODY:/);
   assert.match(ci, /verify\.mjs/);
+});
+
+test('readJsString round-trips a title with an apostrophe, quotes, and a hash', () => {
+  const title = `the user's "kind: \\"png\\"" and #wpadminbar`;
+  const source = `serialTest(${JSON.stringify(title)}, async () => {\n  assert.equal(1, 2);\n});\n`;
+  const start = source.match(/\b(?:test|serialTest)\(\s*(?=['"`])/);
+  assert.ok(start);
+  assert.equal(readJsString(source, start.index + start[0].length), title);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'm2b-title-'));
+  const plain = path.join(dir, 'plain.pending.mjs');
+  fs.writeFileSync(plain, source);
+  const regexCall = path.join(dir, 'regex.pending.mjs');
+  fs.writeFileSync(regexCall, "test('kept', () => {\n  assert.equal(/docker/i.test(String('docker')), true);\n});\n");
+  const indexed = indexAcceptanceSources([plain, regexCall]);
+  assert.deepEqual(indexed.errors, []);
+  assert.deepEqual(indexed.tests.map((found) => found.title), [title, 'kept']);
+
+  const skipped = path.join(dir, 'skip.pending.mjs');
+  fs.writeFileSync(skipped, "test.skip('hidden', () => { assert.equal(1, 1); });\n");
+  assert.ok(indexAcceptanceSources([skipped]).errors.some((error) => error.includes('skip or todo')));
+
+  const noAssert = path.join(dir, 'empty.pending.mjs');
+  fs.writeFileSync(noAssert, "test('empty', () => {\n  return 1;\n});\n");
+  assert.ok(indexAcceptanceSources([noAssert]).errors.some((error) => error.includes('without an assert')));
 });

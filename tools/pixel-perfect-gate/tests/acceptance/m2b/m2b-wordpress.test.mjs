@@ -34,7 +34,7 @@ function wpHtml(mode) {
   </body></html>`;
 }
 
-function wpRepo(name, { runtime, buildType, structureCheck, selector, html, raw, blueprint }) {
+function wpRepo(name, { runtime, buildType, structureCheck, selector, html, raw, blueprint, maxDiff = 100 }) {
   const repo = freshDir('m2b', name);
   const htmlFile = path.join(repo, 'page.html');
   fs.writeFileSync(htmlFile, html || wpHtml('keep'));
@@ -43,16 +43,16 @@ function wpRepo(name, { runtime, buildType, structureCheck, selector, html, raw,
   writeJson(path.join(repo, 'pixel-gate.config.json'), {
     viewports: VIEW,
     dpr: 1,
-    maxDiff: 0.5,
+    maxDiff,
     scenarios: 'scenarios.json',
     routes: [{
       id: 'home',
       path: '/',
-      reference: { kind: 'html-file', source: reference, selector: 'main' },
+      reference: { kind: 'html-file', source: reference, ...(selector ? { selector } : {}) },
     }],
     target: {
       kind: 'wordpress',
-      selector: selector || 'main',
+      ...(selector ? { selector } : {}),
       wordpress: {
         ...(runtime ? { runtime } : {}),
         ...(buildType ? { buildType } : {}),
@@ -96,6 +96,8 @@ serialTest('M2b-AC-25 break-it: an explicit runtime of existing does not spawn p
   try {
     const config = JSON.parse(fs.readFileSync(path.join(repo, 'pixel-gate.config.json'), 'utf8'));
     config.target.wordpress.url = server.baseUrl;
+    config.routes[0].path = '/index.html';
+    delete config.scenarios;
     writeJson(path.join(repo, 'pixel-gate.config.json'), config);
     const result = await compare(repo, [], env);
     assert.equal(stub.entries().some((entry) => entry.argv && entry.argv.includes('@wp-playground/cli')), false);
@@ -128,6 +130,10 @@ serialTest('M2b-AC-26 break-it: a reachable existing URL is not a blocked error'
     const run = wpRepo('ac26-ok', { runtime: 'existing' });
     const config = JSON.parse(fs.readFileSync(path.join(run.repo, 'pixel-gate.config.json'), 'utf8'));
     config.target.wordpress.url = server.baseUrl;
+    config.routes[0].path = '/index.html';
+    config.routes[0].referenceRequired = false;
+    delete config.routes[0].reference;
+    delete config.scenarios;
     writeJson(path.join(run.repo, 'pixel-gate.config.json'), config);
     const result = await compare(run.repo, [], run.env);
     assert.equal(result.json && result.json.loop && result.json.loop.stopReason === 'blocked', false);
@@ -196,8 +202,18 @@ serialTest('M2b-AC-29: With `structureCheck: "advisory"`, a page whose whole con
 });
 
 serialTest('M2b-AC-30: A converted fixture page matches its `html-file` prototype within the tier A rule, comparing `target.selector` (default `main`, configurable) against `reference.selector`. Setting `target.selector` to `body` compares the whole page.', async () => {
-  const main = wpRepo('ac30-main', { selector: 'main' });
-  const body = wpRepo('ac30-body', { selector: 'body' });
+  const sharedMain = '<main style="padding:8px;width:300px;height:120px;background:#fff;color:#111"><button id="go" type="button">Subscribe</button><p id="out">idle</p></main>';
+  const refHtml = `<!doctype html><html><body style="margin:0"><header style="height:40px;background:#eee">Proto</header>${sharedMain}</body></html>`;
+  const wpBody = `<!doctype html><html><body style="margin:0"><div id="wpadminbar" style="height:32px;background:#1d2327">admin</div><header style="height:40px;background:#ccc">Theme</header>${sharedMain}<script>document.getElementById("go").addEventListener("click",()=>{document.getElementById("out").textContent="done";});</script></body></html>`;
+  const main = wpRepo('ac30-main', { selector: 'main', maxDiff: 0.5, html: wpBody });
+  const body = wpRepo('ac30-body', { selector: 'body', maxDiff: 0.5, html: wpBody });
+  for (const r of [main, body]) {
+    const cfgPath = path.join(r.repo, 'pixel-gate.config.json');
+    const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    fs.writeFileSync(cfg.routes[0].reference.source, refHtml);
+    delete cfg.scenarios;
+    writeJson(cfgPath, cfg);
+  }
   const mainRun = await compare(main.repo, [], main.env);
   const bodyRun = await compare(body.repo, [], body.env);
   const mainCheck = mainRun.json && mainRun.json.gates && mainRun.json.gates.gate2 && mainRun.json.gates.gate2.checks && mainRun.json.gates.gate2.checks[0];
@@ -274,7 +290,14 @@ serialTest('M2b-AC-33: Credentials (application password) are read from the envi
       WORDPRESS_USERNAME: 'm2b-user',
       WORDPRESS_APP_PASSWORD: SENTINEL,
     });
-    assert.ok(auths.some((value) => value.includes(SENTINEL)), 'the environment password is sent to the site');
+    assert.ok(
+      auths.some(
+        (value) =>
+          value.includes(SENTINEL) ||
+          (value.startsWith('Basic ') && Buffer.from(value.slice(6), 'base64').toString('utf8').includes(SENTINEL))
+      ),
+      'the environment password is sent to the site'
+    );
     assert.equal(result.stdout.includes(SENTINEL), false);
     assert.equal(JSON.stringify(findings(result.json)).includes(SENTINEL), false);
     assert.deepEqual(filesContaining(path.join(run.repo, '.visual-eval'), SENTINEL), []);

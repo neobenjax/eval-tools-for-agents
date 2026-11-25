@@ -152,7 +152,7 @@ serialTest("M2b-AC-03 break-it: a changed source sha256 does not reuse the previ
   assert.equal(first.code, 0);
   const before = readManifest(repo);
   assert.ok(before && before.sha256 && before.sha256.png && before.sha256.source);
-  fs.appendFileSync(source, '\n<!-- changed -->\n');
+  fs.appendFileSync(source, '\n<style>body{background:#fafafa}</style>\n');
   const second = await capture(repo, []);
   assert.equal(second.code, 0);
   const after = readManifest(repo);

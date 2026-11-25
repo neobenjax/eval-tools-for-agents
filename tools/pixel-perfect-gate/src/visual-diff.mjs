@@ -67,6 +67,17 @@ export function cropPng(src, x, y, width, height) {
   return dst;
 }
 
+export function cropPngFile(filePath, box, dpr = 1) {
+  if (!box || !(box.width > 0) || !(box.height > 0)) return;
+  const src = PNG.sync.read(fs.readFileSync(filePath));
+  const x = Math.max(0, Math.round(box.x * dpr));
+  const y = Math.max(0, Math.round(box.y * dpr));
+  const width = Math.max(1, Math.round(box.width * dpr));
+  const height = Math.max(1, Math.round(box.height * dpr));
+  const cropped = cropPng(src, x, y, width, height);
+  fs.writeFileSync(filePath, PNG.sync.write(cropped));
+}
+
 export function readReferencePng(refPath) {
   if (!fs.existsSync(refPath)) {
     throw new Error(`Reference image not found: ${refPath}`);
@@ -88,8 +99,18 @@ function axisDelta(actual, expected) {
 
 export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmarks = null, tolerance = 4, hasSidecar = false) {
   const findings = [];
+  let normalizedExpected = expectedLandmarks;
+  if (
+    normalizedExpected &&
+    !Array.isArray(normalizedExpected) &&
+    typeof normalizedExpected === 'object'
+  ) {
+    normalizedExpected = Object.entries(normalizedExpected)
+      .filter(([, box]) => box && typeof box === 'object')
+      .map(([selector, box]) => ({ selector, index: 0, ...box }));
+  }
 
-  if (hasSidecar && (!Array.isArray(expectedLandmarks) || expectedLandmarks.length === 0)) {
+  if (hasSidecar && (!Array.isArray(normalizedExpected) || normalizedExpected.length === 0)) {
     findings.push({
       id: 'gate2.landmark.invalid-sidecar',
       gate: 'gate2',
@@ -113,14 +134,14 @@ export function compareWireframeLandmarks(actualLandmarks = [], expectedLandmark
     return { passed: false, findings, actualLandmarks: [] };
   }
 
-  if (Array.isArray(expectedLandmarks) && expectedLandmarks.length > 0) {
+  if (Array.isArray(normalizedExpected) && normalizedExpected.length > 0) {
     const actualByKey = new Map();
     for (const lm of actualLandmarks) {
       const key = `${lm.selector}::${lm.index ?? 0}`;
       actualByKey.set(key, lm);
     }
 
-    for (const exp of expectedLandmarks) {
+    for (const exp of normalizedExpected) {
       const idx = exp.index ?? 0;
       const key = `${exp.selector}::${idx}`;
       const act = actualByKey.get(key);

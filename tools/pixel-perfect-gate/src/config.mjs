@@ -22,7 +22,7 @@ export function resolveSafeOutDir(cwd, outOpt = '.visual-eval', { allowTestDir =
  * Load and validate `pixel-gate.config.json` (or `--config <file>`).
  * Returns `{ configPath, config }` or `null` when no config file is requested or present.
  */
-export function loadProjectConfig(cwd, configOpt = null) {
+export function loadProjectConfig(cwd, configOpt = null, { isCapture = false } = {}) {
   let configPath = null;
   if (configOpt) {
     configPath = path.resolve(cwd, configOpt);
@@ -47,8 +47,21 @@ export function loadProjectConfig(cwd, configOpt = null) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error(`Invalid config in ${configPath}: expected a JSON object`);
   }
-  if (typeof raw.baseUrl !== 'string' || !raw.baseUrl.trim()) {
+  const targetKind = raw.target?.kind;
+  const baseUrlOptional =
+    isCapture ||
+    targetKind === 'static' ||
+    targetKind === 'wordpress' ||
+    targetKind === 'dev-server' ||
+    (Array.isArray(raw.routes) && raw.routes.length > 0 && raw.routes.every((r) => r?.reference?.kind));
+  if (!baseUrlOptional && (typeof raw.baseUrl !== 'string' || !raw.baseUrl.trim())) {
     throw new Error(`Invalid config in ${configPath}: missing required field "baseUrl"`);
+  }
+  if (raw.loop?.maxIterations !== undefined && raw.loop?.maxIterations !== null) {
+    const maxIter = Number(raw.loop.maxIterations);
+    if (!Number.isInteger(maxIter) || maxIter < 1 || maxIter > 5) {
+      throw new Error(`Invalid config in ${configPath}: maxIterations (${raw.loop.maxIterations}) cannot exceed 5`);
+    }
   }
   if (!Array.isArray(raw.viewports) || raw.viewports.length === 0) {
     throw new Error(`Invalid config in ${configPath}: missing required non-empty array "viewports"`);
@@ -57,6 +70,9 @@ export function loadProjectConfig(cwd, configOpt = null) {
     if (!vp || typeof vp.name !== 'string' || !vp.name.trim() || !(Number(vp.width) > 0) || !(Number(vp.height) > 0)) {
       throw new Error(`Invalid config in ${configPath}: each viewport must have name, width, and height`);
     }
+    if (vp.name.includes('..') || /[\\/]/.test(vp.name)) {
+      throw new Error(`Invalid viewport name "${vp.name}" in ${configPath}: must not contain path separators or ".."`);
+    }
   }
   if (!Array.isArray(raw.routes)) {
     throw new Error(`Invalid config in ${configPath}: missing required array "routes"`);
@@ -64,6 +80,9 @@ export function loadProjectConfig(cwd, configOpt = null) {
   for (const route of raw.routes) {
     if (!route || typeof route.id !== 'string' || !route.id.trim() || typeof route.path !== 'string') {
       throw new Error(`Invalid config in ${configPath}: each route must have id and path`);
+    }
+    if (route.id.includes('..') || /[\\/]/.test(route.id)) {
+      throw new Error(`Invalid route id "${route.id}" in ${configPath}: must not contain path separators or ".."`);
     }
   }
 

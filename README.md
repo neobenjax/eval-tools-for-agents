@@ -4,7 +4,7 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 
 ## Tools
 
-- **`tools/pixel-perfect-gate`** *(Milestone 1 and Milestone 2 green; Milestone 2b gap suite)*: Hybrid Playwright CLI (`playwright` pinned to `1.65.1`) plus a cross-harness `SKILL.md`. Gate 1 (layout/runtime), Gate 2 (`pixelmatch` / wireframe), Gate 3 (static audit and scenario runner), spec intake, installer, and harness smoke checks are in the M1/M2 green suites.
+- **`tools/pixel-perfect-gate`** *(Milestone 1, Milestone 2, and Milestone 2b green)*: Hybrid Playwright CLI (`playwright` pinned to `1.65.1`) plus a cross-harness `SKILL.md`. Gate 1 (layout/runtime), Gate 2 (`pixelmatch` / wireframe / style parity), Gate 3 (static audit, scenario runner, dual-run parity), spec intake, reference bundles (`html-file`, `url`, `screenshot`, `design-file`), target adapters (`static`, `dev-server`, `wordpress`), audit loop contract, installer, and harness smoke checks are in the M1/M2/M2b green suites.
 - **`apps/dashboard`** *(Milestone 3)*: Eval Benchmarks & Linear Delivery Board viewer. Not built yet. The gap suite is M3-AC-01 through M3-AC-03 (primary: `.visual-eval/telemetry.jsonl` grouped by model, harness, and iteration; secondary: server-side Linear stages `Todo`, `In Progress`, `In Review`, `Approved`, `Rework`). `LINEAR_API_KEY` stays off the client bundle. M3-AC-04 is green: the section 4 `Depends on:` list for the viewer row.
 
 ## Current milestone status
@@ -15,7 +15,8 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 - **M1 gaps:** none. The report criteria M1-AC-09 through M1-AC-15 were promoted when PR #16 landed. Do not treat them as pending work.
 - **M2 green:** M2-AC-01 through M2-AC-37 (global CLI, per-project config, spec intake, Gate 3 static audit and scenario runner, optional vision pass, `SKILL.md`, installer, and harness smoke checks). They live in `tools/pixel-perfect-gate/tests/acceptance/m2/*.test.mjs` with manifest `suite: "pass"`.
 - **M2 gaps:** none. Do not treat them as pending work.
-- **M2b gap suite:** M2b-AC-01 through M2b-AC-59 (59 criteria) stay unchecked. Their own tests are `pending/m2b-*.pending.mjs` and fail with `ERR_ASSERTION` until the criterion is met. Promote a criterion into `tests/acceptance/m2b/*.test.mjs` only when its own test goes green. Five break-its already pass under still-unchecked criteria and live in `tests/acceptance/m2b/m2b-shipped-break-its.test.mjs` (M2b-AC-19, M2b-AC-23, and three M2b-AC-59 checker directions).
+- **M2b green:** M2b-AC-01 through M2b-AC-59 (59 criteria) live in `tools/pixel-perfect-gate/tests/acceptance/m2b/*.test.mjs` with manifest `suite: "pass"`.
+- **M2b gaps:** none.
 - **M3 gap suite:** M3-AC-01 through M3-AC-03 stay unchecked. Their tests are `tools/pixel-perfect-gate/tests/acceptance/pending/m3-*.pending.mjs` and fail with `ERR_ASSERTION` until the viewer meets them. Promote a criterion into `tests/acceptance/m3/*.test.mjs` only when its own test goes green, and check the section 8 box plus the manifest `suite` in that same change. M3-AC-04 is green in `tests/acceptance/m3/m3-depends.test.mjs`. No M3 break-it is registered `{ title, suite: "pass" }` under an unchecked criterion.
 
 ## Contract the next change must keep

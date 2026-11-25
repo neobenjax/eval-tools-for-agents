@@ -10,7 +10,7 @@ import readline from 'node:readline';
 import { PNG } from 'pngjs';
 import { startStaticServer } from './targets.mjs';
 import { runScenario } from './scenario-runner.mjs';
-import { cropPng } from './visual-diff.mjs';
+import { cropPngFile } from './visual-diff.mjs';
 
 export const COPYRIGHT_DISCLAIMER =
   "Copying a website's design, text, images, or code can infringe copyright, trademark, or the site's terms of service. A visual or functional copy does not give you any rights to the original. Only publish a copy you own, have a license for, or have permission to make. This tool does not check rights for you.";
@@ -320,7 +320,7 @@ export async function captureSingleRouteBundle({
 
     await page.screenshot({ path: pngPath, fullPage: Boolean(opts.fullPage) });
     if (selBox && !opts.fullPage) {
-      cropPng(pngPath, selBox, dpr);
+      cropPngFile(pngPath, selBox, dpr);
     }
   } finally {
     await context.close();

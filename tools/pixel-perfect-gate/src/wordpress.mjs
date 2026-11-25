@@ -232,7 +232,7 @@ export async function runWordPressStructureCheck({ baseUrl, wpCfg = {} }) {
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/wp-json/wp/v2/pages/${pageId}?context=edit`;
   const headers = {};
   if (username || appPassword) {
-    headers.Authorization = `Basic ${username}:${appPassword}`;
+    headers.Authorization = `Basic ${Buffer.from(`${username}:${appPassword}`).toString('base64')}`;
   }
 
   try {

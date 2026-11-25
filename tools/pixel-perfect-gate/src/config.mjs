@@ -70,6 +70,9 @@ export function loadProjectConfig(cwd, configOpt = null, { isCapture = false } =
     if (!vp || typeof vp.name !== 'string' || !vp.name.trim() || !(Number(vp.width) > 0) || !(Number(vp.height) > 0)) {
       throw new Error(`Invalid config in ${configPath}: each viewport must have name, width, and height`);
     }
+    if (vp.name.includes('..') || /[\\/]/.test(vp.name)) {
+      throw new Error(`Invalid viewport name "${vp.name}" in ${configPath}: must not contain path separators or ".."`);
+    }
   }
   if (!Array.isArray(raw.routes)) {
     throw new Error(`Invalid config in ${configPath}: missing required array "routes"`);
@@ -77,6 +80,9 @@ export function loadProjectConfig(cwd, configOpt = null, { isCapture = false } =
   for (const route of raw.routes) {
     if (!route || typeof route.id !== 'string' || !route.id.trim() || typeof route.path !== 'string') {
       throw new Error(`Invalid config in ${configPath}: each route must have id and path`);
+    }
+    if (route.id.includes('..') || /[\\/]/.test(route.id)) {
+      throw new Error(`Invalid route id "${route.id}" in ${configPath}: must not contain path separators or ".."`);
     }
   }
 

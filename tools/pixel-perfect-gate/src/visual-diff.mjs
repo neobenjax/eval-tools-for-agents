@@ -67,6 +67,17 @@ export function cropPng(src, x, y, width, height) {
   return dst;
 }
 
+export function cropPngFile(filePath, box, dpr = 1) {
+  if (!box || !(box.width > 0) || !(box.height > 0)) return;
+  const src = PNG.sync.read(fs.readFileSync(filePath));
+  const x = Math.max(0, Math.round(box.x * dpr));
+  const y = Math.max(0, Math.round(box.y * dpr));
+  const width = Math.max(1, Math.round(box.width * dpr));
+  const height = Math.max(1, Math.round(box.height * dpr));
+  const cropped = cropPng(src, x, y, width, height);
+  fs.writeFileSync(filePath, PNG.sync.write(cropped));
+}
+
 export function readReferencePng(refPath) {
   if (!fs.existsSync(refPath)) {
     throw new Error(`Reference image not found: ${refPath}`);

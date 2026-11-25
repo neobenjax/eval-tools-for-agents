@@ -9,7 +9,7 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import { program } from 'commander';
 import { attachRuntimeListeners, runLayoutAudit } from '../src/layout-audit.mjs';
-import { readReferencePng, compareVisual, cropPng } from '../src/visual-diff.mjs';
+import { readReferencePng, compareVisual, cropPng, cropPngFile } from '../src/visual-diff.mjs';
 import { recordTelemetry } from '../src/telemetry.mjs';
 import { buildReport } from '../src/report.mjs';
 import { resolveSafeOutDir, loadProjectConfig, loadScenariosFile } from '../src/config.mjs';
@@ -776,7 +776,7 @@ try {
             ? opts.mask.split(',').map((s) => s.trim()).filter(Boolean)
             : routeMasks;
           const refKind = route.reference?.kind || 'png';
-          const targetSelector = route.selector || config.target?.selector || (config.target?.kind === 'wordpress' ? 'main' : null);
+          const targetSelector = route.selector || config.target?.selector || null;
 
           for (const vp of config.viewports) {
             let refPath = null;
@@ -1028,7 +1028,7 @@ try {
 
             await page.screenshot({ path: actualPath, fullPage: shouldFullPage });
             if (selBox && !shouldFullPage) {
-              cropPng(actualPath, selBox, dpr);
+              cropPngFile(actualPath, selBox, dpr);
             }
 
             if (bundleDir && config.target?.kind !== 'wordpress') {
@@ -1093,7 +1093,10 @@ try {
             } else if (!vis.passed) {
               allChecksPassed = false;
               for (const f of vis.findings || []) {
-                gate2Findings.push({ ...f, id: `${f.id}.${route.id}.${vp.name}` });
+                const fid = f.id.startsWith('gate2.landmark.') || f.id.startsWith('gate2.region.')
+                  ? f.id
+                  : `${f.id}.${route.id}.${vp.name}`;
+                gate2Findings.push({ ...f, id: fid });
               }
             }
 

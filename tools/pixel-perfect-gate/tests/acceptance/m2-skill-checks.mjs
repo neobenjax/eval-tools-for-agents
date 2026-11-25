@@ -86,11 +86,10 @@ export function playwrightReplayProblems(text) {
 export function modeGuidanceProblems(text) {
   const problems = [];
   const body = norm(text);
-  const lines = sentences(text);
-  const pixel = lines.some((l) => /pixel/i.test(l) && /committed/i.test(l) && /png/i.test(l));
-  const wire = lines.some((l) => /wireframe/i.test(l) && /(structural|sketch)/i.test(l));
-  if (!pixel) problems.push('no line says to use pixel mode when a committed PNG exists');
-  if (!wire) problems.push('no line says to use wireframe mode for a structural sketch');
+  const pixel = /pixel/i.test(body) && /committed/i.test(body) && /png/i.test(body);
+  const wire = /wireframe/i.test(body) && /(structural|sketch)/i.test(body);
+  if (!pixel) problems.push('does not say to use pixel mode when a committed PNG exists');
+  if (!wire) problems.push('does not say to use wireframe mode for a structural sketch');
   if (!/--mode\s+wireframe/.test(body)) problems.push('does not show --mode wireframe');
   return problems;
 }

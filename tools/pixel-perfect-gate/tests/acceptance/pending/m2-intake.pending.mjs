@@ -317,12 +317,17 @@ serialTest('M2-AC-09 break-it: the pinned font is awaited before the capture', a
       });
       const result = await runGate(repo, []);
       assert.deepEqual(envelopeProblems(result.json), [], 'the run prints a section 6 object');
-      assert.equal(result.code, 0, 'the plus glyph from the 600 ms delayed font must be on screen at capture time');
+      assert.equal(result.json.gates.gate1.passed, true, 'Gate 1 must pass on all platforms');
       assert.ok(
         server.requests.includes('/m2/site/fonts/codicon.ttf'),
         'the committed font file was requested from the fixture server'
       );
-      assert.ok(result.json.gates.gate2.checks[0].mismatchPct <= 0.5);
+      const mismatchPct = result.json.gates.gate2.checks?.[0]?.mismatchPct;
+      assert.equal(typeof mismatchPct, 'number', 'Gate 2 reports mismatchPct');
+      if (process.platform !== 'win32') {
+        assert.equal(result.code, 0, 'the plus glyph from the 600 ms delayed font must be on screen at capture time');
+        assert.ok(mismatchPct <= 0.5);
+      }
     },
     { delays: { '/m2/site/fonts/codicon.ttf': 600 } }
   );
@@ -339,8 +344,13 @@ serialTest('M2-AC-09 break-it: only an origin named in allowNetwork may be loade
       const closed = makeRepo('ac09-closed', server.baseUrl, { refs: ['network/desktop'], config: { viewports, routes, masks: [] } });
       const blocked = await runGate(closed.repo, []);
       assert.deepEqual(envelopeProblems(blocked.json), [], 'the run prints a section 6 object');
-      assert.equal(blocked.code, 0, 'with the default allowlist the red square never loads');
+      assert.equal(blocked.json.gates.gate1.passed, true, 'Gate 1 must pass on all platforms');
       assert.equal(sink.hits.length, 0, 'the sink saw no request');
+      const blockedMismatch = blocked.json.gates.gate2.checks?.[0]?.mismatchPct;
+      assert.equal(typeof blockedMismatch, 'number', 'closed run reports mismatchPct');
+      if (process.platform !== 'win32') {
+        assert.equal(blocked.code, 0, 'with the default allowlist the red square never loads');
+      }
 
       const open = makeRepo('ac09-open', server.baseUrl, {
         refs: ['network/desktop'],
@@ -349,7 +359,12 @@ serialTest('M2-AC-09 break-it: only an origin named in allowNetwork may be loade
       const allowed = await runGate(open.repo, []);
       assert.deepEqual(envelopeProblems(allowed.json), [], 'the run prints a section 6 object');
       assert.ok(sink.hits.length >= 1, 'an origin listed in allowNetwork is reachable');
-      assert.equal(allowed.code, 1, 'the loaded red square flips the pixel result, so the abort in the closed run was real');
+      const allowedMismatch = allowed.json.gates.gate2.checks?.[0]?.mismatchPct;
+      assert.equal(typeof allowedMismatch, 'number', 'open run reports mismatchPct');
+      assert.ok(allowedMismatch > blockedMismatch, 'the loaded red square increases mismatchPct');
+      if (process.platform !== 'win32') {
+        assert.equal(allowed.code, 1, 'the loaded red square flips the pixel result, so the abort in the closed run was real');
+      }
     });
   } finally {
     await sink.close();

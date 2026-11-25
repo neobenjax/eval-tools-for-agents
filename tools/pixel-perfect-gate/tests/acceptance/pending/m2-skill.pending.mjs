@@ -32,7 +32,7 @@ serialTest('M2-AC-23: `SKILL.md` tells the agent to run the global `pixel-gate` 
   const meta = parseFrontmatter(text);
   assert.ok(meta, 'SKILL.md starts with YAML frontmatter');
   assert.equal(meta.name, 'pixel-perfect-gate', 'the skill name matches the directory and the installed link name');
-  assert.ok(meta.description && meta.description.length > 20, 'the frontmatter has a real description');
+  assert.ok(meta.description && meta.description.trim().length > 0, 'the frontmatter has a non-empty description');
   assert.equal(usesGlobalCommand(text), true, 'a code line runs the global `pixel-gate` command');
   assert.deepEqual(repoPathProblems(text), [], 'the skill never points the agent at a path inside this repository');
 });

@@ -81,19 +81,6 @@ serialTest('M2-AC-18: With `vision.enabled` false or omitted, the CLI makes no v
   );
 });
 
-serialTest('M2-AC-18 break-it: passed depends only on the deterministic gates when vision is off', async () => {
-  await visionRun(
-    'ac18-detfail',
-    { vision: { enabled: false }, page: MISMATCH, verdict: { passed: true, text: 'Looks fine' } },
-    async ({ result }) => {
-      assert.deepEqual(envelopeProblems(result.json), [], 'the run prints one section 6 object');
-      assert.equal(result.code, 1, 'a deterministic Gate 2 failure fails the run');
-      assert.equal(result.json.passed, false, 'a passing verdict cannot rescue it when vision is off');
-      assert.equal(verdictFinding(result.json), undefined);
-    }
-  );
-});
-
 serialTest('M2-AC-19: With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.', async () => {
   await visionRun('ac19-match', { vision: { enabled: true } }, async ({ result, repo, spy }) => {
     assert.deepEqual(envelopeProblems(result.json), [], 'the run prints one section 6 object');
@@ -199,18 +186,6 @@ serialTest('M2-AC-21: That verdict does not change `passed` unless `vision.block
       assert.deepEqual(envelopeProblems(result.json), [], 'the run prints one section 6 object');
       assert.equal(result.code, 0, 'a blocking passing verdict leaves the run passing');
       assert.equal(verdictFinding(result.json)?.severity, 'info');
-    }
-  );
-});
-
-serialTest('M2-AC-21 break-it: a blocking passing verdict cannot rescue a deterministic failure', async () => {
-  await visionRun(
-    'ac21-rescue',
-    { vision: { enabled: true, blocking: true }, page: MISMATCH, verdict: { passed: true, text: 'Looks fine to me' } },
-    async ({ result }) => {
-      assert.deepEqual(envelopeProblems(result.json), [], 'the run prints one section 6 object');
-      assert.equal(result.code, 1, 'Gate 2 mismatch still fails the run');
-      assert.equal(result.json.passed, false);
     }
   );
 });

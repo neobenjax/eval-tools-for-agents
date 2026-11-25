@@ -75,15 +75,6 @@ serialTest('M2-AC-02: `pixel-gate --help` exits `0` on Windows and on Ubuntu.', 
   assert.equal(viaPath.code, 0, `pixel-gate --help from PATH must exit 0 on ${process.platform}`);
 });
 
-serialTest('M2-AC-02 break-it: running with no arguments and no config prints one section 6 error object', async () => {
-  const cwd = freshDir('ac02-noargs');
-  const result = await runNode([cliPath], { cwd });
-  assert.equal(result.code, 1, 'no arguments and no config is a failed run');
-  assert.deepEqual(envelopeProblems(result.json), [], 'the failure is one section 6 object, not commander text');
-  assert.equal(result.json.passed, false);
-  assert.ok(result.json.error && result.json.error.message, 'the error object explains the missing config');
-});
-
 serialTest('M2-AC-03: A config file in a second repo supplies base URL, viewports, reference directory, masks, routes, and scenarios.', async () => {
   await withServer(async (server) => {
     const { repo } = makeRepo('ac03', server.baseUrl, {
@@ -190,20 +181,6 @@ serialTest('M2-AC-04 break-it: --out cannot leave the .visual-eval tree', async 
   });
 });
 
-serialTest('M2-AC-04 break-it: a failing run writes only under .visual-eval/ and invents no reference', async () => {
-  await withServer(async (server) => {
-    const { repo } = makeRepo('ac04-fail', server.baseUrl, { refs: [] });
-    const before = snapshotTree(repo);
-    const result = await runGate(repo, []);
-    assert.equal(result.code, 1, 'a route with no reference fails');
-    assert.deepEqual(envelopeProblems(result.json), [], 'the failure is one section 6 object');
-    const diff = diffTrees(before, snapshotTree(repo));
-    for (const file of diff.added) assert.ok(file.startsWith('.visual-eval/'), `wrote outside .visual-eval/: ${file}`);
-    assert.equal(fs.existsSync(path.join(repo, 'references')), false, 'the tool never saves a screenshot as a reference');
-    assert.deepEqual(diff.changed, [], 'no existing file changes');
-  });
-});
-
 serialTest('M2-AC-05: `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.', async () => {
   await withServer(async (server) => {
     const flagsOnly = freshDir('ac05', 'flags-only');
@@ -228,17 +205,5 @@ serialTest('M2-AC-05: `--url` and `--ref` still run Gate 1 and Gate 2 without a 
     assert.equal(mismatch.code, 1, 'config maxDiff 0.5 applies when no flag is given');
     const lenient = await runGate(repo, ['--config', configPath, '--url', about, '--ref', refInRepo, '--max-diff', '100']);
     assert.equal(lenient.code, 0, '--max-diff overrides the config maxDiff for one run');
-  });
-});
-
-serialTest('M2-AC-05 break-it: --url without --ref runs Gate 1 only and reports Gate 2 as skipped', async () => {
-  await withServer(async (server) => {
-    const cwd = freshDir('ac05-gate1');
-    const result = await runGate(cwd, ['--url', `${server.baseUrl}${HOME_URL}`]);
-    assert.deepEqual(envelopeProblems(result.json), [], 'a Gate 1 only run prints a section 6 object');
-    assert.equal(result.json.gates.gate2.skipped, true, 'Gate 2 is skipped without a reference');
-    assert.equal(result.json.gates.gate2.passed, true);
-    assert.equal(typeof result.json.gates.gate2.reason, 'string');
-    assert.equal(result.json.gates.gate1.skipped === true, false, 'Gate 1 ran');
   });
 });

@@ -372,15 +372,11 @@ function runStatus(dir) {
 
 test('a green break-it under an unchecked criterion is enforced, and a gap test that starts passing still fails', () => {
   const shipped = [
-    'M2-AC-02 break-it: running with no arguments and no config prints one section 6 error object',
-    'M2-AC-04 break-it: a failing run writes only under .visual-eval/ and invents no reference',
-    'M2-AC-05 break-it: --url without --ref runs Gate 1 only and reports Gate 2 as skipped',
-    'M2-AC-18 break-it: passed depends only on the deterministic gates when vision is off',
-    'M2-AC-21 break-it: a blocking passing verdict cannot rescue a deterministic failure',
+    'M2b-AC-19 break-it: a Gate 1 finding does not grow refBox, expected, or actual keys',
   ];
   const spec = realSpec();
   for (const title of shipped) {
-    const id = title.slice(0, 'M2-AC-00'.length);
+    const id = title.slice(0, 'M2b-AC-00'.length);
     const entry = manifest.criteria.find((item) => item.id === id);
     assert.equal(entry.suite, 'gap', `${id} stays a gap criterion`);
     assert.ok(spec.includes(`- [ ] ${entry.text}`), `${id} section 8 box stays unchecked`);

@@ -34,8 +34,13 @@ jobs:
       - name: Install Playwright Chromium (Windows)
         if: runner.os == 'Windows'
         run: npx playwright install chromium
-      - name: Verify pixel-gate CLI help
-        run: node tools/pixel-perfect-gate/bin/pixel-gate.mjs --help
+      - name: Install pixel-gate CLI and skill links
+        shell: bash
+        run: |
+          node tools/pixel-perfect-gate/scripts/install.mjs --skip-chromium --bin-dir "${{ github.workspace }}/.ci-bin"
+          echo "${{ github.workspace }}/.ci-bin" >> "$GITHUB_PATH"
+      - name: Verify global pixel-gate --help
+        run: pixel-gate --help
       - name: Run pre-flight verifier and package tests
         run: node scripts/verify.mjs
       - name: Fetch base branch for acceptance-test diff

@@ -388,18 +388,18 @@ PR #2 compared pixels, honored `--dpr`, wrote the composite, covered `--mask`, c
 
 ### SIDE-25 per-project config and global CLI (`M2.0a`)
 
-- [ ] After one install, `pixel-gate` resolves on `PATH`.
-- [ ] `pixel-gate --help` exits `0` on Windows and on Ubuntu.
-- [ ] A config file in a second repo supplies base URL, viewports, reference directory, masks, routes, and scenarios.
-- [ ] The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.
-- [ ] `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.
+- [x] After one install, `pixel-gate` resolves on `PATH`.
+- [x] `pixel-gate --help` exits `0` on Windows and on Ubuntu.
+- [x] A config file in a second repo supplies base URL, viewports, reference directory, masks, routes, and scenarios.
+- [x] The tool writes only `.visual-eval/` in that repo and does not change its dependency manifest.
+- [x] `--url` and `--ref` still run Gate 1 and Gate 2 without a config file.
 
 ### SIDE-26 spec intake (`M2.0b`)
 
-- [ ] Reference PNGs are keyed by route id and viewport name, as in section 7.
-- [ ] A markdown acceptance list maps each scenario heading to a scenario id. An unmapped heading and an unmapped scenario each produce a finding and exit `1`.
-- [ ] A configured route with no reference PNG fails with `gate2.missing-reference.<route-id>.<viewport-name>`.
-- [ ] The determinism checks in section 5 that need a project fixture run here: pinned font on the committed PNG, non-fixture network aborted, `ubuntu-latest` as the pixel source of truth, and a `windows-latest` CI job satisfying the Section 5 Windows v1 requirement.
+- [x] Reference PNGs are keyed by route id and viewport name, as in section 7.
+- [x] A markdown acceptance list maps each scenario heading to a scenario id. An unmapped heading and an unmapped scenario each produce a finding and exit `1`.
+- [x] A configured route with no reference PNG fails with `gate2.missing-reference.<route-id>.<viewport-name>`.
+- [x] The determinism checks in section 5 that need a project fixture run here: pinned font on the committed PNG, non-fixture network aborted, `ubuntu-latest` as the pixel source of truth, and a `windows-latest` CI job satisfying the Section 5 Windows v1 requirement.
 
 ### SIDE-19 re-scope (M2)
 
@@ -407,59 +407,59 @@ Static audit and scenario runner ship together. Static checks use `src/interacti
 
 Static:
 
-- [ ] Flags a button or link-role control with no accessible name.
-- [ ] Flags `href="#"` and `href=""`.
-- [ ] Flags a click target whose center is covered by another element.
-- [ ] Flags an input, select, or textarea with no associated label.
-- [ ] Each static hit is a `findings` entry with `id`, `selector`, `box`, and `text`.
+- [x] Flags a button or link-role control with no accessible name.
+- [x] Flags `href="#"` and `href=""`.
+- [x] Flags a click target whose center is covered by another element.
+- [x] Flags an input, select, or textarea with no associated label.
+- [x] Each static hit is a `findings` entry with `id`, `selector`, `box`, and `text`.
 
 Static rule details & explicit exclusions: `dead-href` flags `href="#"` and `href=""`; same-page fragment anchors with a non-empty target (e.g. `href="#main"`) and normal paths are allowed. `covered-target` uses center-point hit-testing via `document.elementFromPoint(centerX, centerY)`: a click target is covered only when the element at its center is neither the target nor a descendant of the target (`elementFromPoint` already skips `pointer-events: none`). In the fixture the full cover is `#overlay`, the edge cover is `#edge-overlay`, and the `pointer-events: none` overlay is `#pe-overlay`; `#pe-none` is the button under that overlay and must not be flagged. `no-label` scans `<input>`, `<select>`, `<textarea>`; placeholder is not a label; hidden and submit inputs are out of scope; `<label for="...">`, wrapping `<label>`, `aria-label`, and `aria-labelledby` count as associated labels.
 
 Scenario runner:
 
-- [ ] A fixture opens a modal, flips a toggle, and submits a labeled form, and exits `0`.
-- [ ] A broken step returns `passed: false`, exit `1`, and a finding with the step selector, the action name, and a screenshot path under `.visual-eval/`.
-- [ ] The runner performs the steps in the scenario file. It does not infer a flow from the static scan.
+- [x] A fixture opens a modal, flips a toggle, and submits a labeled form, and exits `0`.
+- [x] A broken step returns `passed: false`, exit `1`, and a finding with the step selector, the action name, and a screenshot path under `.visual-eval/`.
+- [x] The runner performs the steps in the scenario file. It does not infer a flow from the static scan.
 
 The static scan may also run inside the Gate 1 browser session as a cheap add-on. Its findings still use the `gate3.` id prefix so agents can tell the gates apart.
 
 ### SIDE-27 vision pass (`M2.1b`, off by default)
 
-- [ ] With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.
-- [ ] With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.
-- [ ] A caller may pass a verdict JSON (`--vision-verdict <file>`) with `{ "passed": boolean, "text": string }`. The text is copied into an `info` finding.
-- [ ] That verdict does not change `passed` unless `vision.blocking` is true. The default is false.
-- [ ] A test covers enabled+non-blocking (deterministic pass stays pass even if the verdict says fail) and blocking (verdict fail forces exit `1`).
+- [x] With `vision.enabled` false or omitted, the CLI makes no vision call and does not read a verdict file. `passed` depends only on deterministic gates.
+- [x] With `vision.enabled` true, the report adds the composite PNG path and the `findings` array on a field the caller can read (`artifacts.composite` and `findings`). The CLI still does not open a network connection to a model.
+- [x] A caller may pass a verdict JSON (`--vision-verdict <file>`) with `{ "passed": boolean, "text": string }`. The text is copied into an `info` finding.
+- [x] That verdict does not change `passed` unless `vision.blocking` is true. The default is false.
+- [x] A test covers enabled+non-blocking (deterministic pass stays pass even if the verdict says fail) and blocking (verdict fail forces exit `1`).
 
 ### SIDE-20 re-scope (M2)
 
 Depends on SIDE-24, SIDE-25, and the SIDE-19 scenario runner.
 
-- [ ] `SKILL.md` tells the agent to run the global `pixel-gate` command, not a path into this repo.
-- [ ] The skill tells the agent to parse the section 6 JSON and to stop after 5 iterations even if `passed` is still false.
-- [ ] The skill tells the agent to write a Playwright `.spec.ts` that replays the scenario file.
-- [ ] The skill states when to use pixel mode and when to use wireframe mode (pixel when a committed PNG exists; wireframe when the reference is a structural sketch).
-- [ ] The skill states that optional host `chrome-devtools-mcp` inspection is an aid only and cannot change `passed`, `findings`, or `exitCode`.
-- [ ] A test reads the skill file and fails if the 5-iteration cap is missing.
-- [ ] No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.
+- [x] `SKILL.md` tells the agent to run the global `pixel-gate` command, not a path into this repo.
+- [x] The skill tells the agent to parse the section 6 JSON and to stop after 5 iterations even if `passed` is still false.
+- [x] The skill tells the agent to write a Playwright `.spec.ts` that replays the scenario file.
+- [x] The skill states when to use pixel mode and when to use wireframe mode (pixel when a committed PNG exists; wireframe when the reference is a structural sketch).
+- [x] The skill states that optional host `chrome-devtools-mcp` inspection is an aid only and cannot change `passed`, `findings`, or `exitCode`.
+- [x] A test reads the skill file and fails if the 5-iteration cap is missing.
+- [x] No acceptance line of the form "passes skill structure validation" unless a checker exists in this repo and the test runs it. Do not add a prose-only validation claim.
 
 ### SIDE-21 re-scope (M2)
 
 Depends on SIDE-20 and SIDE-25. One installer path: `tools/pixel-perfect-gate/scripts/install.mjs`. Do not also add `scripts/install.mjs` at the repo root.
 
-- [ ] On Windows the installer creates a directory junction for the skill. On Unix it creates the skill link with `ln -sfn`.
-- [ ] Skill destinations: Antigravity Desktop `~/.gemini/config/skills/`, Antigravity CLI `~/.gemini/antigravity-cli/skills/`, Cursor `~/.cursor/skills/`.
-- [ ] The installer puts `pixel-gate` on `PATH` and installs the pinned Chromium.
-- [ ] The installer does not add this package to the dependencies of the target application.
-- [ ] Re-running the installer replaces the links and leaves a working `pixel-gate --help`.
+- [x] On Windows the installer creates a directory junction for the skill. On Unix it creates the skill link with `ln -sfn`.
+- [x] Skill destinations: Antigravity Desktop `~/.gemini/config/skills/`, Antigravity CLI `~/.gemini/antigravity-cli/skills/`, Cursor `~/.cursor/skills/`.
+- [x] The installer puts `pixel-gate` on `PATH` and installs the pinned Chromium.
+- [x] The installer does not add this package to the dependencies of the target application.
+- [x] Re-running the installer replaces the links and leaves a working `pixel-gate --help`.
 
 ### SIDE-22 re-scope (M2)
 
 A live model loop is evidence, not a merge condition.
 
-- [ ] All three required v1 harnesses (**Antigravity Desktop, Antigravity CLI, and Cursor**) list the installed `pixel-perfect-gate` skill (no skip path).
-- [ ] A scripted prompt (fixed text, no requirement that a model invent a fix) returns stdout that parses as section 6 JSON in each of the three harnesses.
-- [ ] A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.
+- [x] All three required v1 harnesses (**Antigravity Desktop, Antigravity CLI, and Cursor**) list the installed `pixel-perfect-gate` skill (no skip path).
+- [x] A scripted prompt (fixed text, no requirement that a model invent a fix) returns stdout that parses as section 6 JSON in each of the three harnesses.
+- [x] A recording of a live loop-until-green session may be attached to the PR. CI does not fail when that recording is absent or when the model stops short of `passed: true`.
 
 ### SIDE-23 re-scope (M3)
 

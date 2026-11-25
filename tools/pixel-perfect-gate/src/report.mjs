@@ -154,7 +154,7 @@ export function buildReport({
       gate3: gate3Result || {
         passed: true,
         skipped: true,
-        reason: 'Gate 3 not enabled in M1',
+        reason: errorMessage || 'Gate 3 was not requested',
       },
     },
     artifacts,

@@ -77,11 +77,6 @@ try {
     durationMs: Date.now() - startMs,
     errorMessage: err?.message || String(err),
   });
-  if (!hadDebugLog) {
-    try {
-      fs.rmSync(path.join(cwd, 'debug.log'), { force: true });
-    } catch {}
-  }
   fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
   process.exit(report.exitCode);
 }
@@ -95,7 +90,6 @@ let gate3Result = null;
 let dpr = 1;
 let iteration = 1;
 let safeOutDir = null;
-const hadDebugLog = fs.existsSync(path.join(cwd, 'debug.log'));
 
 function isExplicit(name) {
   return program.getOptionValueSource(name) !== 'default' && program.getOptionValueSource(name) !== undefined;
@@ -373,23 +367,31 @@ try {
     }
 
     const actualPath = path.join(safeOutDir, 'actual.png');
-    browser = await chromium.launch({
-      args: ['--disable-logging', `--log-file=${path.join(safeOutDir, 'chromium.log')}`],
-      env: { ...process.env, CHROME_LOG_FILE: path.join(safeOutDir, 'chromium.log') },
-    });
+    process.chdir(safeOutDir);
+    try {
+      browser = await chromium.launch({
+        args: ['--disable-logging', `--log-file=${path.join(safeOutDir, 'chromium.log')}`],
+        env: { ...process.env, CHROME_LOG_FILE: path.join(safeOutDir, 'chromium.log') },
+      });
+    } finally {
+      process.chdir(cwd);
+    }
     const page = await browser.newPage({
       viewport: { width: viewportWidth, height: viewportHeight },
       deviceScaleFactor: dpr,
     });
+    const abortedUrls = await applyNetworkPolicy(page, opts.url, config?.allowNetwork);
     const { consoleErrors, networkErrors } = attachRuntimeListeners(page);
     await page.goto(opts.url, { waitUntil: 'networkidle', timeout: timeoutMs });
     await freezePage(page);
 
+    const filteredConsoleErrors = consoleErrors.filter((e) => !e.url || !abortedUrls.has(e.url));
+    const filteredNetworkErrors = networkErrors.filter((e) => !abortedUrls.has(e.url));
     const domAudit = await runLayoutAudit(page);
     const g1Issues = domAudit.issues;
     const gate1Passed =
-      consoleErrors.length === 0 &&
-      networkErrors.length === 0 &&
+      filteredConsoleErrors.length === 0 &&
+      filteredNetworkErrors.length === 0 &&
       !g1Issues.horizontalOverflow &&
       g1Issues.overflowingElements.length === 0 &&
       g1Issues.clippedTextElements.length === 0 &&
@@ -399,8 +401,8 @@ try {
     gate1Result = {
       passed: gate1Passed,
       viewport: domAudit.viewport,
-      consoleErrors,
-      networkErrors,
+      consoleErrors: filteredConsoleErrors,
+      networkErrors: filteredNetworkErrors,
       ...g1Issues,
     };
 
@@ -524,10 +526,15 @@ try {
     }
   } else {
     // Config-driven run (routes x viewports, intake mapping, optional --scenario)
-    browser = await chromium.launch({
-      args: ['--disable-logging', `--log-file=${path.join(safeOutDir, 'chromium.log')}`],
-      env: { ...process.env, CHROME_LOG_FILE: path.join(safeOutDir, 'chromium.log') },
-    });
+    process.chdir(safeOutDir);
+    try {
+      browser = await chromium.launch({
+        args: ['--disable-logging', `--log-file=${path.join(safeOutDir, 'chromium.log')}`],
+        env: { ...process.env, CHROME_LOG_FILE: path.join(safeOutDir, 'chromium.log') },
+      });
+    } finally {
+      process.chdir(cwd);
+    }
 
     if (targetScenario) {
       let vpWidth = 1440;
@@ -682,13 +689,11 @@ try {
 
       if (config.acceptance) {
         const intakeFindings = checkAcceptanceMapping(cwd, config.acceptance, scenariosList);
-        if (intakeFindings.length > 0) {
-          gate3Result = {
-            passed: false,
-            skipped: false,
-            findings: intakeFindings,
-          };
-        }
+        gate3Result = {
+          passed: intakeFindings.length === 0,
+          skipped: false,
+          findings: intakeFindings,
+        };
       }
     }
 
@@ -748,11 +753,6 @@ try {
   report.telemetry = telemetryPath;
   report.artifacts = { ...(report.artifacts || {}), telemetry: telemetryPath };
 
-  if (!hadDebugLog) {
-    try {
-      fs.rmSync(path.join(cwd, 'debug.log'), { force: true });
-    } catch {}
-  }
   fs.writeSync(1, JSON.stringify(report, null, 2) + '\n');
   process.exit(report.exitCode);
 } catch (err) {
@@ -802,11 +802,6 @@ try {
     failureReport.artifacts = { ...(failureReport.artifacts || {}), telemetry: telemetryPath };
   }
 
-  if (!hadDebugLog) {
-    try {
-      fs.rmSync(path.join(cwd, 'debug.log'), { force: true });
-    } catch {}
-  }
   fs.writeSync(1, JSON.stringify(failureReport, null, 2) + '\n');
   process.exit(failureReport.exitCode);
 }

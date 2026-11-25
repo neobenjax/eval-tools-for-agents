@@ -15,6 +15,13 @@ Run `pixel-gate` from the target project root (where `pixel-gate.config.json` li
 pixel-gate --config pixel-gate.config.json --iteration 1
 ```
 
+To run the Gate 3 static interaction audit or replay a configured user-flow scenario:
+
+```bash
+pixel-gate --url http://127.0.0.1:3000 --gate3-static
+pixel-gate --config pixel-gate.config.json --scenario <scenario-id> --iteration 1
+```
+
 - **Pixel mode (default):** Use pixel mode when a committed PNG reference exists for the route and viewport.
 - **Wireframe mode (`--mode wireframe`):** Use wireframe mode when the reference is a structural sketch rather than a final painted design:
 

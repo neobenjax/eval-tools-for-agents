@@ -7,6 +7,11 @@ import { execFileSync } from 'node:child_process';
 export const STAGES = ['Todo', 'In Progress', 'In Review', 'Approved', 'Rework'];
 const STAGE_SET = new Set(STAGES);
 
+function redactSecret(text, secret) {
+  const str = String(text ?? '');
+  return secret ? str.split(secret).join('[redacted]') : str;
+}
+
 export function createBoardLoader(linearCliPath) {
   let cached = null;
 
@@ -43,11 +48,15 @@ export function createBoardLoader(linearCliPath) {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (err) {
+      const detail =
+        typeof err?.status === 'number'
+          ? `exited with status ${err.status}`
+          : redactSecret(err?.code || 'execution failed', apiKey);
       cached = {
         status: 400,
         body: {
           view: 'board',
-          error: { message: `Linear CLI failed: ${err.message || 'non-zero exit'}` },
+          error: { message: `Linear CLI failed: ${detail}` },
         },
       };
       return cached;
@@ -61,7 +70,7 @@ export function createBoardLoader(linearCliPath) {
         status: 400,
         body: {
           view: 'board',
-          error: { message: `Invalid JSON from Linear CLI: ${err.message}` },
+          error: { message: `Invalid JSON from Linear CLI: ${redactSecret(err.message, apiKey)}` },
         },
       };
       return cached;
@@ -83,7 +92,7 @@ export function createBoardLoader(linearCliPath) {
           status: 400,
           body: {
             view: 'board',
-            error: { message: `Unknown Linear stage "${issue?.stage}"` },
+            error: { message: `Unknown Linear stage "${redactSecret(issue?.stage, apiKey)}"` },
           },
         };
         return cached;

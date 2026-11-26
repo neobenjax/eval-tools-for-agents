@@ -42,7 +42,7 @@ if (cmd === 'benchmarks') {
   const portOpt = getFlag('--port');
   let port = 0;
   if (portOpt !== null) {
-    port = Number(portOpt);
+    port = portOpt.trim() === '' ? NaN : Number(portOpt);
     if (!Number.isInteger(port) || port < 0 || port > 65535) {
       process.stdout.write(JSON.stringify({ error: { message: `Invalid --port: ${portOpt}` } }) + '\n');
       process.exit(1);

@@ -14,7 +14,7 @@ export function readBenchmarks(telemetryPath) {
     throw new Error(`Telemetry file not found: ${telemetryPath}`);
   }
   const raw = fs.readFileSync(telemetryPath, 'utf8');
-  const lines = raw.split(/\r?\n/);
+  const lines = raw.replace(/^\uFEFF/, '').split(/\r?\n/);
   const map = new Map();
 
   for (let i = 0; i < lines.length; i++) {

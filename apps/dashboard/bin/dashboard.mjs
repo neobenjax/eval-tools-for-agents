@@ -40,12 +40,20 @@ if (cmd === 'benchmarks') {
     ? path.resolve(process.cwd(), telemetryOpt)
     : path.join(process.cwd(), '.visual-eval', 'telemetry.jsonl');
   const portOpt = getFlag('--port');
+  let port = 0;
+  if (portOpt !== null) {
+    port = Number(portOpt);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      process.stdout.write(JSON.stringify({ error: { message: `Invalid --port: ${portOpt}` } }) + '\n');
+      process.exit(1);
+    }
+  }
   const linearCliOpt = getFlag('--linear-cli');
   const linearCliPath = linearCliOpt ? path.resolve(process.cwd(), linearCliOpt) : null;
   try {
     const { url } = await startDashboardServer({
       telemetryPath,
-      port: portOpt !== null ? Number(portOpt) : 0,
+      port,
       linearCliPath,
     });
     process.stdout.write(JSON.stringify({ url }) + '\n');

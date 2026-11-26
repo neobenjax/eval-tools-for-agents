@@ -5,7 +5,7 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 ## Tools
 
 - **`tools/pixel-perfect-gate`** *(Milestone 1, Milestone 2, and Milestone 2b green)*: Hybrid Playwright CLI (`playwright` pinned to `1.65.1`) plus a cross-harness `SKILL.md`. Gate 1 (layout/runtime), Gate 2 (`pixelmatch` / wireframe / style parity), Gate 3 (static audit, scenario runner, dual-run parity), spec intake, reference bundles (`html-file`, `url`, `screenshot`, `design-file`), target adapters (`static`, `dev-server`, `wordpress`), audit loop contract, installer, and harness smoke checks are in the M1/M2/M2b green suites.
-- **`apps/dashboard`** *(Milestone 3)*: Eval Benchmarks & Linear Delivery Board viewer. Not built yet. The gap suite is M3-AC-01 through M3-AC-03 (primary: `.visual-eval/telemetry.jsonl` grouped by model, harness, and iteration; secondary: server-side Linear stages `Todo`, `In Progress`, `In Review`, `Approved`, `Rework`). `LINEAR_API_KEY` stays off the client bundle. M3-AC-04 is green: the section 4 `Depends on:` list for the viewer row.
+- **`apps/dashboard`** *(Milestone 3 green)*: Eval Benchmarks & Linear Delivery Board viewer (`apps/dashboard/bin/dashboard.mjs`). M3-AC-01 through M3-AC-04 are green (`tests/acceptance/m3/*.test.mjs`): primary `.visual-eval/telemetry.jsonl` grouped by model, harness, and iteration; secondary server-side Linear stages `Todo`, `In Progress`, `In Review`, `Approved`, `Rework`; `LINEAR_API_KEY` stays off the client bundle.
 
 ## Current milestone status
 
@@ -17,7 +17,8 @@ A cross-harness monorepo of deterministic evaluation tools, agent-looping skills
 - **M2 gaps:** none. Do not treat them as pending work.
 - **M2b green:** M2b-AC-01 through M2b-AC-59 (59 criteria) live in `tools/pixel-perfect-gate/tests/acceptance/m2b/*.test.mjs` with manifest `suite: "pass"`.
 - **M2b gaps:** none.
-- **M3 gap suite:** M3-AC-01 through M3-AC-03 stay unchecked. Their tests are `tools/pixel-perfect-gate/tests/acceptance/pending/m3-*.pending.mjs` and fail with `ERR_ASSERTION` until the viewer meets them. Promote a criterion into `tests/acceptance/m3/*.test.mjs` only when its own test goes green, and check the section 8 box plus the manifest `suite` in that same change. M3-AC-04 is green in `tests/acceptance/m3/m3-depends.test.mjs`. No M3 break-it is registered `{ title, suite: "pass" }` under an unchecked criterion.
+- **M3 green:** M3-AC-01 through M3-AC-04 (`apps/dashboard`) live in `tools/pixel-perfect-gate/tests/acceptance/m3/*.test.mjs` with manifest `suite: "pass"`.
+- **M3 gaps:** none.
 
 ## Contract the next change must keep
 

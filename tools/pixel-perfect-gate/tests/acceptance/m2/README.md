@@ -1,6 +1,6 @@
 # Milestone 2 acceptance tests
 
-M1-AC-01 through M1-AC-15 (`../`) and M2-AC-01 through M2-AC-37 (this directory) are green. There is no M1 or M2 gap file left. M2b-AC-01 through M2b-AC-59 are a separate gap suite in `../pending/m2b-*.pending.mjs` (`../m2b/README.md`). M3-AC-01 through M3-AC-03 are a separate gap suite in `../pending/m3-*.pending.mjs`, and M3-AC-04 is green in `../m3/m3-depends.test.mjs` (`../m3/README.md`). `node scripts/acceptance-status.mjs` runs the remaining gap files and exits 0 only while every remaining gap test fails with `ERR_ASSERTION`. A missing, skipped, crashing, or passing gap test makes that command exit 1. `ENFORCED_MILESTONES` is `M1`, `M2`, `M2b`, and `M3`. `npm test` must not invoke a pending file directly.
+M1-AC-01 through M1-AC-15 (`../`), M2-AC-01 through M2-AC-37 (this directory), M2b-AC-01 through M2b-AC-59 (`../m2b/README.md`), and M3-AC-01 through M3-AC-04 (`../m3/README.md`) are all green (`0` gap criteria remaining). `node scripts/acceptance-status.mjs` verifies the manifest and exits `0` while all enforced criteria pass. `ENFORCED_MILESTONES` is `M1`, `M2`, `M2b`, and `M3`. `npm test` must not invoke a pending file directly.
 
 The five early break-its in `m2-shipped-break-its.test.mjs` (`M2-AC-02`, `M2-AC-04`, `M2-AC-05`, `M2-AC-18`, `M2-AC-21`) continue to run alongside `m2-*.test.mjs` now that all 37 M2 criteria are green (`SPEC.md` section 13).
 

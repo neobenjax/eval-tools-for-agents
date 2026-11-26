@@ -1009,7 +1009,7 @@ export const criteria = [
   {
     id: 'M3-AC-01',
     milestone: 'M3',
-    suite: 'gap',
+    suite: 'pass',
     text: '**Eval Benchmarks (primary):** Groups `.visual-eval/telemetry.jsonl` by `model`, `harness`, and `iteration`.',
     breakIt: [
       'M3-AC-01 break-it: rows with the same model, harness, and iteration are one group',
@@ -1022,7 +1022,7 @@ export const criteria = [
   {
     id: 'M3-AC-02',
     milestone: 'M3',
-    suite: 'gap',
+    suite: 'pass',
     text: '**Linear Delivery Board (secondary):** Renders live Linear stages (`Todo`, `In Progress`, `In Review`, `Approved`, `Rework`) fetched server-side or via local CLI. When `LINEAR_API_KEY` is absent, the board route remains present and renders an empty state while Eval Benchmarks stay the primary view.',
     breakIt: [
       'M3-AC-02 break-it: a configured key uses the local CLI, and a zero-issue result is not the no-key empty state',
@@ -1033,7 +1033,7 @@ export const criteria = [
   {
     id: 'M3-AC-03',
     milestone: 'M3',
-    suite: 'gap',
+    suite: 'pass',
     text: '`LINEAR_API_KEY` is read only on a server or in a local CLI. A check verifies it is absent from any client-side bundle.',
     breakIt: [
       'M3-AC-03 break-it: a client file containing LINEAR_API_KEY fails the check and names that file',

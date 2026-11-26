@@ -1,0 +1,13 @@
+{
+  "name": "@eval-tools/dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eval Benchmarks & Linear Delivery Board viewer for eval-tools-for-agents.",
+  "bin": {
+    "eval-dashboard": "./bin/dashboard.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

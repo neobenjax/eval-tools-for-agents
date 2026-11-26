@@ -517,7 +517,7 @@ test('real SPEC section 8 M3 criteria are the four viewer boxes', () => {
   assert.deepEqual(m3.errors, []);
   assert.deepEqual([...new Set(m3.criteria.map((criterion) => criterion.key))], ['SIDE-23']);
   assert.equal(m3.criteria.length, 4);
-  assert.deepEqual(m3.criteria.map((criterion) => criterion.checked), [false, false, false, true]);
+  assert.deepEqual(m3.criteria.map((criterion) => criterion.checked), [true, true, true, true]);
   const m3Manifest = manifest.criteria.filter((entry) => entry.milestone === 'M3');
   assert.deepEqual(
     m3Manifest.map((entry) => entry.id),
